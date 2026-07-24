@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "migrations": [
+    {
+      "id": "001-initial-schema",
+      "file": "001-initial-schema.sql",
+      "description": "Initial Nexpertic AI Service Desk D1 schema for schema tracking, tickets, audit, remote support, security events, users and tenants."
+    }
+  ],
+  "seeds": [
+    {
+      "id": "001-pilot-baseline",
+      "file": "seeds/001-pilot-baseline.sql",
+      "description": "Clean pilot baseline with tenant and admin only."
+    },
+    {
+      "id": "002-demo-data",
+      "file": "seeds/002-demo-data.sql",
+      "description": "Optional local/demo data for repeatable commercial demos."
+    }
+  ]
+}
