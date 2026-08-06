@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { formatUtcTime } from "@/lib/nexera/time-format";
 
 type ConsentSession = {
   code: string;
@@ -17,10 +18,6 @@ type ConsentDecisionProps = {
   initialSession: ConsentSession;
   token: string;
 };
-
-function isoTime(value: string) {
-  return `${value.slice(11, 16)} UTC`;
-}
 
 export function ConsentDecision({ initialSession, token }: ConsentDecisionProps) {
   const [session, setSession] = useState(initialSession);
@@ -68,7 +65,7 @@ export function ConsentDecision({ initialSession, token }: ConsentDecisionProps)
         <div className="consentFacts">
           <span>Estado: {session.status}</span>
           <span>Expira en {session.expiresInMinutes} minutos</span>
-          <span>Valido hasta {isoTime(session.consentExpiresAt)}</span>
+          <span>Valido hasta {formatUtcTime(session.consentExpiresAt)}</span>
           <span>{session.consentGrantedAt ? "Aprobada" : session.consentRejectedAt ? "Rechazada" : "Pendiente"}</span>
         </div>
         <div className="consentActions">

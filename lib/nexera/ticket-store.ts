@@ -5,6 +5,10 @@ export function listStoredTickets(filters?: { priority?: TicketPriority | "Todas
   return getTicketRepository().list(filters);
 }
 
+export function getStoredTicket(id: string, tenantId?: string) {
+  return getTicketRepository().get(id, tenantId);
+}
+
 export function createStoredTicket(input: CreateTicketInput) {
   return getTicketRepository().create(input);
 }

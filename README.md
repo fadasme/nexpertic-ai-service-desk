@@ -29,6 +29,7 @@ fuera del repositorio.
 
 - `npm run dev`: inicia desarrollo local
 - `npm run build`: valida el build de vinext
+- `npm run serve:vps`: arranque recomendado para VPS escuchando solo en `127.0.0.1:3004`
 - `npm run smoke:local`: prueba endpoints clave contra `http://localhost:3000`
 - `npm run e2e:local`: valida flujo ticket -> GLPI/fallback -> RustDesk -> auditoria -> readiness
 - `npm run test:oidc`: valida seguridad OIDC localmente
@@ -45,7 +46,7 @@ fuera del repositorio.
 Cuando toque mover la instancia a un VPS, el runbook recomendado esta en
 [`outputs/nexera-ai-service-desk/95-vps-preparacion.md`](/Users/fadasme/Documents/Codex/2026-07-20/ay/outputs/nexera-ai-service-desk/95-vps-preparacion.md).
 Ese flujo asume `systemd`, `nginx`, Node `>=22.13.0` y app escuchando en
-`127.0.0.1:3000`.
+`127.0.0.1:3004`.
 
 ## Database Seeds
 

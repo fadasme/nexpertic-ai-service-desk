@@ -32,15 +32,20 @@ export function AccessControlPanel({ initialSession, users }: AccessControlPanel
       await fetch("/api/auth/logout", { method: "POST" });
       window.dispatchEvent(new CustomEvent("nexera:role-change", { detail: initialSession }));
       setSession(initialSession);
+      window.location.reload();
     });
   }
 
   return (
     <section className="accessPanel" aria-label="Control de acceso">
       <div>
-        <p className="eyebrow">Sesion operativa</p>
+        <p className="eyebrow">Sesion activa</p>
         <h2>{session.name}</h2>
         <p>{session.role} · {session.email} · {session.tenant}</p>
+        <div className="accessSummary">
+          <span className="badge">{session.permissions.length} permisos</span>
+          <span className="badge warning">{session.role}</span>
+        </div>
       </div>
       <div className="roleSwitcher">
         {users.map((user) => (
@@ -51,7 +56,7 @@ export function AccessControlPanel({ initialSession, users }: AccessControlPanel
         ))}
         <button disabled={isPending} onClick={logout} type="button">
           Cerrar sesion
-          <small>limpia cookie</small>
+          <small>restablece acceso</small>
         </button>
       </div>
     </section>

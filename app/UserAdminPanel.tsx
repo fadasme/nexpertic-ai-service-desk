@@ -27,6 +27,13 @@ export function UserAdminPanel({ initialUsers }: UserAdminPanelProps) {
   const [users, setUsers] = useState(initialUsers);
   const [notice, setNotice] = useState<PanelNotice | null>(null);
   const [isPending, startTransition] = useTransition();
+  const admins = users.filter((user) => user.role === "Admin").length;
+  const analysts = users.filter((user) => user.role === "Analista").length;
+  const activeUsers = users.filter((user) => user.status === "Activo").length;
+  const latestAccess = users
+    .map((user) => user.lastAccessAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => b.localeCompare(a))[0];
 
   function changeRole(userId: string, role: UserRole) {
     startTransition(async () => {
@@ -50,6 +57,21 @@ export function UserAdminPanel({ initialUsers }: UserAdminPanelProps) {
   return (
     <div className="userAdminPanel">
       {notice ? <p className={`consoleNotice ${notice.kind}`} role="status">{notice.text}</p> : null}
+      <div className="adminExecutive">
+        <div>
+          <span>Activos</span>
+          <strong>{activeUsers}</strong>
+        </div>
+        <div>
+          <span>Analistas</span>
+          <strong>{analysts}</strong>
+        </div>
+        <div>
+          <span>Admins</span>
+          <strong>{admins}</strong>
+        </div>
+        <p>{latestAccess ? `Ultimo acceso ${compactAccess(latestAccess)}.` : "Sin accesos recientes."}</p>
+      </div>
       <div className="userTable">
         <div className="userTableHeader">
           <strong>Usuario</strong>

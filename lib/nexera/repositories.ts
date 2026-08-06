@@ -15,6 +15,7 @@ export type TicketFilters = {
 
 export type TicketRepository = {
   list(filters?: TicketFilters): Promise<Ticket[]>;
+  get(id: string, tenantId?: string): Promise<Ticket | null>;
   create(input: CreateTicketInput): Promise<Ticket>;
   update(id: string, input: UpdateTicketInput, tenantId?: string): Promise<Ticket | null>;
 };
@@ -248,6 +249,9 @@ function inferTicket(description: string, count: number, requester = "Usuario de
 }
 
 export const memoryTicketRepository: TicketRepository = {
+  async get(id, tenantId = DEFAULT_TENANT_ID) {
+    return getStore().tickets.find((ticket) => ticket.id === id && (ticket.tenantId ?? DEFAULT_TENANT_ID) === tenantId) ?? null;
+  },
   async list(filters) {
     const query = filters?.q?.trim().toLowerCase();
     const requester = filters?.requester?.trim().toLowerCase();
@@ -307,7 +311,7 @@ export const memoryAuditRepository: AuditRepository = {
       ...input,
       tenantId: input.tenantId ?? DEFAULT_TENANT_ID,
       id: `audit-${input.ticketId}-${Date.now()}`,
-      at: new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit" }).format(new Date()),
+      at: new Date().toISOString(),
     };
 
     getStore().auditEvents = [event, ...getStore().auditEvents];
@@ -617,6 +621,18 @@ const d1TicketRepository: TicketRepository = {
       return memoryTicketRepository.list(filters);
     }
   },
+  async get(id, tenantId = DEFAULT_TENANT_ID) {
+    const db = env.DB;
+    if (!db) return memoryTicketRepository.get(id, tenantId);
+
+    try {
+      await seedD1IfEmpty(db);
+      const row = await db.prepare("select * from tickets where id = ? and tenant_id = ?").bind(id, tenantId).first<TicketRow>();
+      return row ? mapTicketRow(row) : null;
+    } catch {
+      return memoryTicketRepository.get(id, tenantId);
+    }
+  },
   async create(input) {
     const db = env.DB;
     if (!db) return memoryTicketRepository.create(input);
@@ -687,7 +703,7 @@ const d1AuditRepository: AuditRepository = {
         ...input,
         tenantId: input.tenantId ?? DEFAULT_TENANT_ID,
         id: `audit-${input.ticketId}-${Date.now()}`,
-        at: new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit" }).format(new Date()),
+        at: new Date().toISOString(),
       };
 
       await db

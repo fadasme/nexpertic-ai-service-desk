@@ -11,7 +11,7 @@ const operationSteps = [
   {
     title: "2. Gestionar cola",
     target: "Cola inteligente",
-    talkTrack: "El equipo revisa prioridad, categoria, confianza IA y resumen tecnico desde Nexpertic.",
+    talkTrack: "El equipo revisa prioridad, categoria, confianza IA y resumen operativo desde Nexpertic.",
   },
   {
     title: "3. Resolver o escalar",
@@ -21,7 +21,7 @@ const operationSteps = [
   {
     title: "4. Soporte remoto",
     target: "RustDesk",
-    talkTrack: "La sesion remota queda persistida y auditada, con invitacion y estado operativo.",
+    talkTrack: "La sesion remota queda persistida y auditada, con invitacion y estado controlado.",
   },
   {
     title: "5. Gobierno",
@@ -45,9 +45,9 @@ export function OperationsGuide() {
         <h2>{active.title}</h2>
         <p>{active.talkTrack}</p>
       </div>
-      <div className="demoMeta">
-        <span>{active.target}</span>
-        <button className="primary" onClick={nextStep} type="button">Siguiente paso</button>
+      <div className="guideMeta">
+        <span className="badge">{active.target}</span>
+        <button className="primary" onClick={nextStep} type="button">Avanzar</button>
       </div>
     </section>
   );

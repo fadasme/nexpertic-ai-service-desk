@@ -1,84 +1,51 @@
-import {
-  getExecutiveMetrics,
-  getSlaSummary,
-  listRemoteSupportConnectors,
-  listAgents,
-  listKnowledgeArticles,
-} from "@/lib/nexera/service";
-import { listAuditEvents } from "@/lib/nexera/audit-store";
+import { cookies } from "next/headers";
 import { getSession } from "@/lib/nexera/auth-store";
-import { listRemoteSupportSessions } from "@/lib/nexera/remote-support-store";
 import { getAuthMode } from "@/lib/nexera/runtime-config";
-import { getPilotReadiness } from "@/lib/nexera/pilot-readiness";
-import { listSecurityEvents } from "@/lib/nexera/security-event-store";
-import { getSecretPosture } from "@/lib/nexera/secret-posture";
+import { verifySessionCookie, sessionCookieName } from "@/lib/nexera/session-cookie";
 import { DEFAULT_TENANT_ID } from "@/lib/nexera/tenant-context";
-import { listTenantConfigs } from "@/lib/nexera/tenant-store";
+import { listSecurityEvents } from "@/lib/nexera/security-event-store";
 import { listStoredTickets } from "@/lib/nexera/ticket-store";
 import { listUserAccounts } from "@/lib/nexera/user-store";
-import { AccessControlPanel } from "./AccessControlPanel";
-import { ApiProbe } from "./ApiProbe";
-import { CommercialModel } from "./CommercialModel";
-import { DeploymentArchitecture } from "./DeploymentArchitecture";
-import { OperationsGuide } from "./OperationsGuide";
-import { KnowledgeSearchPanel } from "./KnowledgeSearchPanel";
-import { PilotLaunch } from "./PilotLaunch";
-import { ProductRoadmap } from "./ProductRoadmap";
-import { SecurityEventsPanel } from "./SecurityEventsPanel";
-import { ServiceDeskConsole } from "./ServiceDeskConsole";
-import { SecretPosturePanel } from "./SecretPosturePanel";
-import { TenantConfigPanel } from "./TenantConfigPanel";
-import { UserAdminPanel } from "./UserAdminPanel";
-import type { SecurityEvent, Ticket } from "@/lib/nexera/contracts";
+import { AuthReturnLink } from "./AuthReturnLink";
 
-function getOperationalMetrics(tickets: Ticket[], securityEvents: SecurityEvent[]) {
-  const openTickets = tickets.filter((ticket) => ticket.status !== "Resuelto").length;
-  const aiAverage = tickets.length ? Math.round(tickets.reduce((total, ticket) => total + ticket.confidence, 0) / tickets.length) : 0;
-  const securityWarnings = securityEvents.filter((event) => event.severity !== "info").length;
-
-  return [
-    { label: "Tickets abiertos", value: String(openTickets), detail: "Persistidos en D1" },
-    { label: "SLA cumplimiento", value: "94%", detail: "Objetivo enterprise 95%" },
-    { label: "Eventos seguridad", value: String(securityWarnings), detail: "Warnings/Critical" },
-    { label: "Confianza IA", value: `${aiAverage}%`, detail: "Promedio clasificacion" },
-  ];
-}
-
-function getRuntimeReadiness() {
-  return [
-    { label: "Frontend Nexpertic", progress: 84, status: "Operativo" },
-    { label: "API y D1", progress: 78, status: "Activo" },
-    { label: "RBAC server-side", progress: 72, status: "Activo" },
-    { label: "RustDesk", progress: 62, status: "Persistido" },
-    { label: "GLPI real", progress: 38, status: "Pendiente" },
-  ];
+function roleRoute(role: string) {
+  if (role === "Usuario") return { href: "/usuario", label: "Portal usuario" };
+  if (role === "Analista") return { href: "/analista", label: "Consola analista" };
+  if (role === "Ejecutivo") return { href: "/ejecutivo", label: "Panel ejecutivo" };
+  return { href: "/admin", label: "Centro de gobierno" };
 }
 
 export default async function Home() {
   const tenantId = DEFAULT_TENANT_ID;
-  const tickets = await listStoredTickets({ tenantId });
-  const auditEvents = await listAuditEvents(undefined, tenantId);
-  const remoteSessions = await listRemoteSupportSessions(undefined, tenantId);
-  const users = await listUserAccounts(tenantId);
-  const tenants = await listTenantConfigs(tenantId);
-  const allSecurityEvents = await listSecurityEvents(undefined, tenantId);
-  const secretPosture = getSecretPosture();
+  const cookieStore = await cookies();
+  const signedSession = await verifySessionCookie(cookieStore.get(sessionCookieName())?.value);
   const authMode = getAuthMode();
-  const pilotReadiness = getPilotReadiness();
-  const agents = listAgents();
-  const knowledge = listKnowledgeArticles();
-  const operationalMetrics = getOperationalMetrics(tickets, allSecurityEvents);
-  const executiveMetrics = getExecutiveMetrics();
-  const slaSummary = getSlaSummary(tickets);
-  const readiness = getRuntimeReadiness();
-  const remoteSupportConnectors = listRemoteSupportConnectors();
-  const securityEvents = allSecurityEvents.slice(0, 5);
-  const securitySummary = {
-    critical: allSecurityEvents.filter((event) => event.severity === "critical").length,
-    info: allSecurityEvents.filter((event) => event.severity === "info").length,
-    warning: allSecurityEvents.filter((event) => event.severity === "warning").length,
-  };
-  const session = getSession("Usuario");
+  const session = signedSession ?? getSession("Usuario");
+  const tickets = await listStoredTickets({ tenantId });
+  const users = await listUserAccounts(tenantId);
+  const securityEvents = await listSecurityEvents(undefined, tenantId);
+  const authLocked = authMode === "production" && !signedSession;
+  const route = roleRoute(session.role);
+  const alertCount = securityEvents.filter((event) => event.severity !== "info").length;
+  const openTickets = tickets.filter((ticket) => ticket.status !== "Resuelto").length;
+
+  if (authLocked) {
+    return (
+      <main className="authLockShell">
+        <section className="authLockCard">
+          <p className="eyebrow">Acceso protegido</p>
+          <h1>Nexpertic AI Service Desk</h1>
+          <p>Esta instancia ya exige una sesion firmada. Inicia con OIDC o usa una cookie valida para continuar.</p>
+          <div className="authLockActions">
+            <AuthReturnLink className="buttonLike primary">Abrir pantalla de acceso</AuthReturnLink>
+            <form action="/api/auth/logout" method="post">
+              <button type="submit">Limpiar sesion</button>
+            </form>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="nexera-shell">
@@ -86,200 +53,155 @@ export default async function Home() {
         <div className="brand">
           <img className="brandLogo" src="/nexpertic-logo-white.png" alt="Nexpertic AI Service Desk" />
         </div>
-
-        <nav className="navList">
-          {["Command Center", "Usuarios", "Analistas", "Conocimiento", "Ejecutivo", "Admin IA"].map((item, index) => (
-            <a className={index === 0 ? "active" : ""} href={`#${item.toLowerCase().replaceAll(" ", "-")}`} key={item}>
-              {item}
-            </a>
-          ))}
-        </nav>
-
-        <div className="coreCard">
-          <span />
-          <div>
-            <strong>GLPI Core</strong>
-            <p>Oculto tras adaptador Nexpertic</p>
-          </div>
+        <div className="sidebarBadge">
+          <span>Versión piloto</span>
+          <strong>{authMode === "demo" ? "Acceso controlado" : "Producción controlada"}</strong>
         </div>
+        <div className="sidebarBadge">
+          <span>Rol activo</span>
+          <strong>{session.role}</strong>
+        </div>
+        <div className="sidebarStatus">
+          <div>
+            <span>Tickets abiertos</span>
+            <strong>{openTickets}</strong>
+          </div>
+          <div>
+            <span>Alertas</span>
+            <strong>{alertCount}</strong>
+          </div>
+          <p>La portada enruta a cada experiencia por rol sin mezclar gobierno, operación y narrativa ejecutiva.</p>
+        </div>
+        <nav className="navList">
+          <a className="active" href={route.href}>
+            Ir a {route.label}
+          </a>
+          <a href="/usuario">Usuario</a>
+          <a href="/analista">Analista</a>
+          <a href="/ejecutivo">Ejecutivo</a>
+          <a href="/admin">Admin</a>
+        </nav>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Operacion minima activa</p>
+            <p className="eyebrow">Portada de la plataforma</p>
             <h1>Nexpertic AI Service Desk</h1>
+            <p className="topbarLead">Una entrada neutra para elegir el espacio correcto: autoservicio, operación, dirección o gobierno.</p>
           </div>
-          <div className="topbarActions">
-            <a className="buttonLike" href="#api">Ver APIs</a>
-            <a className="buttonLike primary" href="#usuarios">Nuevo ticket</a>
+          <div className="topbarRight">
+            <div className="topbarStats" aria-label="Resumen del producto">
+              <span><strong>{tickets.length}</strong> tickets</span>
+              <span><strong>{users.length}</strong> usuarios</span>
+              <span><strong>{alertCount}</strong> alertas</span>
+            </div>
+            <div className="topbarActions">
+              <a className="buttonLike" href="/signin">Iniciar sesión</a>
+              <a className="buttonLike primary" href={route.href}>Continuar como {session.role}</a>
+            </div>
           </div>
         </header>
 
-        {authMode === "demo" ? (
-          <section className="authModeBanner" aria-label="Modo de autorizacion">
-            <div>
-              <p className="eyebrow">Modo demo activo</p>
-              <h2>Headers de prueba habilitados</h2>
-              <p>Para piloto cliente usa `NEXERA_AUTH_MODE=production` y cookie firmada. Mientras tanto, esta instancia permite `x-nexera-role` para pruebas locales.</p>
-            </div>
-            <span>Auth: demo</span>
-          </section>
-        ) : null}
+        <section className="roleLanding">
+          <div>
+            <p className="eyebrow">Nexpertic AI Service Desk</p>
+            <h2>Soporte, gobierno y automatización en una sola plataforma</h2>
+            <p>
+              Una entrada clara para elegir tu experiencia por rol, avanzar al trabajo correcto y mantener trazabilidad
+              de cada acción.
+            </p>
+          </div>
+          <div className="roleLandingActions">
+            <a className="buttonLike primary" href={route.href}>
+              Ir a {route.label}
+            </a>
+            <a className="buttonLike" href="/signin">
+              Ver acceso demo
+            </a>
+          </div>
+        </section>
 
-        <OperationsGuide />
+        <section className="homeValueGrid" aria-label="Propuesta de valor">
+          <article className="homeValueCard">
+            <span className="eyebrow">1. Operación</span>
+            <h3>Tickets, soporte remoto y escalamiento guiado</h3>
+            <p>Centraliza solicitudes, prioriza incidencias y coordina resolución con contexto real.</p>
+          </article>
+          <article className="homeValueCard">
+            <span className="eyebrow">2. Gobierno</span>
+            <h3>Usuarios, tenants, secretos y auditoría</h3>
+            <p>Controla acceso, postura de riesgo y cumplimiento con vistas dedicadas para administración.</p>
+          </article>
+          <article className="homeValueCard">
+            <span className="eyebrow">3. Dirección</span>
+            <h3>Lectura ejecutiva para avanzar el piloto</h3>
+            <p>Observa completitud, SLA, riesgos y roadmap sin mezclar señal operativa con narrativa comercial.</p>
+          </article>
+        </section>
 
-        <AccessControlPanel initialSession={session} users={users} />
-
-        <section className="metrics" aria-label="Metricas operativas">
-          {operationalMetrics.map((metric) => (
-            <article key={metric.label}>
-              <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
-              <small>{metric.detail}</small>
-            </article>
-          ))}
+        <section className="homeHeroPanel">
+          <div>
+            <p className="eyebrow">Arranque rápido</p>
+            <h2>Entra por el rol correcto y continúa donde corresponde</h2>
+            <p>
+              La plataforma ya está separada por experiencia: usuario, analista, ejecutivo y admin. Cada una abre su
+              propia superficie de trabajo.
+            </p>
+          </div>
+          <div className="homeHeroActions">
+            <a className="buttonLike primary" href="/signin">
+              Iniciar sesión
+            </a>
+            <a className="buttonLike" href={route.href}>
+              Continuar como {session.role}
+            </a>
+          </div>
         </section>
 
         <section className="grid">
-          <ServiceDeskConsole initialAuditEvents={auditEvents} initialKnowledgeArticles={knowledge} initialRemoteSessions={remoteSessions} initialSession={session} initialTickets={tickets} />
+          <article className="panel">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Usuario</p>
+                <h2>Autoservicio y tickets</h2>
+              </div>
+            </div>
+            <p className="permissionHint">Crear y seguir solicitudes, con sugerencias de conocimiento y flujo asistido.</p>
+            <a className="buttonLike primary" href="/usuario">Abrir portal usuario</a>
+          </article>
 
           <article className="panel">
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">IA</p>
-                <h2>Agentes activos</h2>
+                <p className="eyebrow">Analista</p>
+                <h2>Operación y soporte</h2>
               </div>
             </div>
-            <div className="agentList">
-              {agents.map((agent) => (
-                <div key={agent.id}>
-                  <strong>{agent.name}</strong>
-                  <p>{agent.goal}</p>
-                  <span>{agent.score}</span>
-                </div>
-              ))}
-            </div>
+            <p className="permissionHint">Resolver, clasificar, consultar APIs y operar soporte remoto con trazabilidad.</p>
+            <a className="buttonLike primary" href="/analista">Abrir consola analista</a>
           </article>
 
-          <article className="panel" id="conocimiento">
+          <article className="panel">
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">RAG empresarial</p>
-                <h2>Conocimiento validado</h2>
+                <p className="eyebrow">Ejecutivo</p>
+                <h2>Dirección y métricas</h2>
               </div>
             </div>
-            <KnowledgeSearchPanel initialArticles={knowledge} />
+            <p className="permissionHint">Ver completitud, riesgo, narrativa y próximos hitos del piloto.</p>
+            <a className="buttonLike primary" href="/ejecutivo">Abrir panel ejecutivo</a>
           </article>
 
-          <article className="panel span2" id="rustdesk">
+          <article className="panel">
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">Soporte remoto</p>
-                <h2>Integracion RustDesk</h2>
+                <p className="eyebrow">Admin</p>
+                <h2>Gobierno y control</h2>
               </div>
             </div>
-            <div className="integrationGrid">
-              {remoteSupportConnectors.map((connector) => (
-                <div key={connector.id}>
-                  <div className="ticketTopline">
-                    <strong>{connector.mode}</strong>
-                    <span className="badge">{connector.status}</span>
-                  </div>
-                  <p>{connector.launchPattern}</p>
-                  <div className="pillRow">
-                    {connector.capabilities.map((capability) => (
-                      <span className="badge" key={capability}>{capability}</span>
-                    ))}
-                  </div>
-                  <small>{connector.securityControls.join(" · ")}</small>
-                </div>
-              ))}
-            </div>
-          </article>
-
-          <article className="panel span2" id="ejecutivo">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Portal ejecutivo</p>
-                <h2>Estado del soporte</h2>
-              </div>
-            </div>
-            <div className="executiveBand">
-              {executiveMetrics.map((metric) => (
-                <div key={metric.label}>
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
-                </div>
-              ))}
-              <p>
-                El foco de riesgo esta en accesos Microsoft 365 y conectividad VPN. Ambos casos son candidatos para automatizacion guiada en la siguiente iteracion.
-              </p>
-            </div>
-            <div className="executiveSplit">
-              <div>
-                <h3>SLA por riesgo</h3>
-                <div className="riskStack">
-                  {slaSummary.map((item) => (
-                    <div className={`riskItem ${item.tone}`} key={item.label}>
-                      <span>{item.label}</span>
-                      <strong>{item.value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3>Readiness MVP</h3>
-                <div className="readinessList">
-                  {readiness.map((item) => (
-                    <div key={item.label}>
-                      <div>
-                        <span>{item.label}</span>
-                        <strong>{item.status}</strong>
-                      </div>
-                      <progress max="100" value={item.progress}>{item.progress}%</progress>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </article>
-
-          <article className="panel span2" id="admin-ia">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Admin IA</p>
-                <h2>Politicas y controles</h2>
-              </div>
-            </div>
-            <UserAdminPanel initialUsers={users} />
-            <TenantConfigPanel tenants={tenants} />
-            <SecretPosturePanel posture={secretPosture} />
-            <div className="policyGrid">
-              <div><strong>Agente</strong><strong>Accion permitida</strong><strong>Control</strong></div>
-              <div><span>Nivel 1</span><span>Responder FAQs</span><span>Automatico</span></div>
-              <div><span>Copiloto L2</span><span>Sugerir resolucion</span><span>Humano valida</span></div>
-              <div><span>Automatizacion</span><span>Ejecutar runbook</span><span>Aprobacion requerida</span></div>
-            </div>
-            <SecurityEventsPanel events={securityEvents} summary={securitySummary} />
-          </article>
-
-          <PilotLaunch readiness={pilotReadiness} />
-
-          <DeploymentArchitecture />
-
-          <CommercialModel />
-
-          <ProductRoadmap />
-
-          <article className="panel span2" id="api">
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Backend operativo</p>
-                <h2>APIs Nexpertic</h2>
-              </div>
-            </div>
-            <ApiProbe />
+            <p className="permissionHint">Gestionar usuarios, tenants, secretos y seguridad de plataforma.</p>
+            <a className="buttonLike primary" href="/admin">Abrir centro de gobierno</a>
           </article>
         </section>
       </section>

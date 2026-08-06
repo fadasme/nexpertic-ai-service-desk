@@ -26,13 +26,13 @@ const statusTone: Record<PilotReadiness["items"][number]["status"], string> = {
 
 function launchBadge(mode: PilotReadiness["mode"]) {
   if (mode === "pilot_ready") return "Listo piloto";
-  if (mode === "demo_ready") return "Demo lista";
+  if (mode === "demo_ready") return "Flujo validado";
   return "Bloqueado";
 }
 
 function launchMessage(mode: PilotReadiness["mode"]) {
   if (mode === "pilot_ready") return "Sin bloqueantes. Instancia preparada para piloto controlado.";
-  if (mode === "demo_ready") return "Flujo funcional para demo. Faltan cierres de configuracion productiva.";
+  if (mode === "demo_ready") return "Flujo validado. Faltan cierres de configuracion productiva.";
   return "Aun no avanzar a cliente: hay bloqueantes de seguridad o integracion.";
 }
 
@@ -89,7 +89,7 @@ export function PilotLaunch({ readiness }: PilotLaunchProps) {
           </ol>
           <div className="pilotExitCard">
             <strong>Criterio de salida</strong>
-            <p>`npm test` y `npm run e2e:local` deben pasar, sin datos demo ni secretos de desarrollo en ambiente cliente.</p>
+            <p>`npm test` y `npm run e2e:local` deben pasar, sin datos de muestra ni secretos de desarrollo en ambiente cliente.</p>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SecurityEvent, SecurityEventSeverity } from "@/lib/nexera/contracts";
+import { formatUtcTime } from "@/lib/nexera/time-format";
 
 type SecurityEventsPanelProps = {
   events: SecurityEvent[];
@@ -11,10 +12,6 @@ type SecurityEventsPanelProps = {
 const severities: Array<SecurityEventSeverity | "all"> = ["all", "info", "warning", "critical"];
 const sources: Array<SecurityEvent["source"] | "all"> = ["all", "rustdesk-consent", "auth", "glpi", "admin"];
 
-function isoTime(value: string) {
-  return `${value.slice(11, 16)} UTC`;
-}
-
 export function SecurityEventsPanel({ events, summary }: SecurityEventsPanelProps) {
   const [severity, setSeverity] = useState<SecurityEventSeverity | "all">("all");
   const [source, setSource] = useState<SecurityEvent["source"] | "all">("all");
@@ -23,12 +20,36 @@ export function SecurityEventsPanel({ events, summary }: SecurityEventsPanelProp
     const matchesSource = source === "all" || event.source === source;
     return matchesSeverity && matchesSource;
   });
+  const latestEvent = filteredEvents[0] ?? events[0] ?? null;
+  const visibleCritical = filteredEvents.filter((event) => event.severity === "critical").length;
+  const visibleWarnings = filteredEvents.filter((event) => event.severity === "warning").length;
+  const visibleSources = new Set(filteredEvents.map((event) => event.source)).size;
+  const visibleInfo = filteredEvents.filter((event) => event.severity === "info").length;
 
   return (
     <div className="securityPanel">
       <div className="ticketTopline">
         <strong>Eventos de seguridad</strong>
         <span className="badge">{filteredEvents.length} visibles</span>
+      </div>
+      <div className="securityExecutive">
+        <div>
+          <span>Criticos</span>
+          <strong>{visibleCritical}</strong>
+        </div>
+        <div>
+          <span>Warnings</span>
+          <strong>{visibleWarnings}</strong>
+        </div>
+        <div>
+          <span>Info</span>
+          <strong>{visibleInfo}</strong>
+        </div>
+        <div>
+          <span>Fuentes</span>
+          <strong>{visibleSources}</strong>
+        </div>
+        <p>{latestEvent ? `${latestEvent.action} · ${formatUtcTime(latestEvent.at)}` : "Sin eventos recientes."}</p>
       </div>
       <div className="securitySummary">
         <span>Info {summary.info}</span>
@@ -51,12 +72,15 @@ export function SecurityEventsPanel({ events, summary }: SecurityEventsPanelProp
         <div className="securityList">
           {filteredEvents.map((event) => (
             <div className={`securityEvent ${event.severity}`} key={event.id}>
-              <div>
-                <strong>{event.action}</strong>
+              <div className="securityEventHeader">
+                <div className="securityEventIdentity">
+                  <span className={`securityDot ${event.severity}`} />
+                  <strong>{event.action}</strong>
+                </div>
                 <span>{event.source}{event.ticketId ? ` · ${event.ticketId}` : ""}</span>
               </div>
               <p>{event.detail}</p>
-              <small>{isoTime(event.at)}</small>
+              <small>{formatUtcTime(event.at)}</small>
             </div>
           ))}
         </div>
