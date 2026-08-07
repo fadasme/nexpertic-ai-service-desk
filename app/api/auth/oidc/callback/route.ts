@@ -1,6 +1,6 @@
 import { createSecurityEvent } from "@/lib/nexera/security-event-store";
 import { exchangeAuthorizationCode, getOidcConfig, mapClaimsToUserAccount, verifyIdTokenClaims, verifyOidcState } from "@/lib/nexera/oidc-config";
-import { buildSessionSetCookie, signSessionCookie } from "@/lib/nexera/session-cookie";
+import { buildSessionSetCookie, getSessionTtlMinutes, signSessionCookie } from "@/lib/nexera/session-cookie";
 import { listUserAccounts } from "@/lib/nexera/user-store";
 
 function cookieValue(request: Request, name: string) {
@@ -10,6 +10,10 @@ function cookieValue(request: Request, name: string) {
     .map((item) => item.trim())
     .find((item) => item.startsWith(`${name}=`))
     ?.slice(name.length + 1);
+}
+
+function sessionExpiresAt() {
+  return new Date(Date.now() + getSessionTtlMinutes() * 60 * 1000).toISOString();
 }
 
 export async function GET(request: Request) {
@@ -60,6 +64,7 @@ export async function GET(request: Request) {
 
     const session = {
       email: user.email,
+      expiresAt: sessionExpiresAt(),
       id: user.id,
       name: user.name,
       permissions: user.permissions,

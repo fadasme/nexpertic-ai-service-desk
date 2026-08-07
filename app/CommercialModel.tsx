@@ -8,13 +8,13 @@ const editions = [
   {
     name: "Professional",
     fit: "Equipos TI medianos",
-    features: ["Chat IA", "RAG validado", "Copiloto L2", "Dashboards operativos", "RustDesk OSS"],
+    features: ["Chat IA", "RAG validado", "Copiloto L2", "Dashboards operativos", "Soporte remoto OSS"],
     metric: "MVP vendible",
   },
   {
     name: "Enterprise",
     fit: "Clientes regulados",
-    features: ["SSO/OIDC", "Auditoria avanzada", "RustDesk Server Pro", "On-Premise", "Politicas por tenant"],
+    features: ["SSO corporativo", "Auditoria avanzada", "Soporte remoto Server Pro", "On-Premise", "Politicas por tenant"],
     metric: "Mayor margen",
   },
 ];

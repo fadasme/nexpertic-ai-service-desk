@@ -2,7 +2,7 @@ import type { PilotReadiness } from "@/lib/nexera/contracts";
 
 const exitCriteria = [
   "Crear ticket desde chat y sincronizarlo con GLPI real",
-  "Ejecutar sesion RustDesk con consentimiento y auditoria",
+  "Ejecutar sesion de soporte remoto con autorizacion y auditoria",
   "Responder al menos 20 FAQs desde RAG validado",
   "Operar piloto con 3 roles: usuario, analista y ejecutivo",
   "Medir SLA, resolucion IA y trazabilidad por ticket",

@@ -170,6 +170,11 @@ export type IdentityProviderConfig = {
   scopes: string[];
 };
 
+export type LocalAdminCredentials = {
+  email: string;
+  enabled: boolean;
+};
+
 export type OidcJwksStatus = {
   discoveryAvailable: boolean;
   error?: string;
@@ -238,4 +243,5 @@ export type SessionUser = {
   role: UserRole;
   tenant: string;
   permissions: string[];
+  expiresAt?: string;
 };

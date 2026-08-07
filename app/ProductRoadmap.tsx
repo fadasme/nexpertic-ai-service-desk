@@ -3,7 +3,7 @@ const roadmap = [
     version: "V1",
     horizon: "0-90 dias",
     focus: "Service Desk IA",
-    items: ["Chat", "Tickets", "RAG", "Agente L1", "Copiloto L2", "RustDesk", "Dashboard ejecutivo"],
+    items: ["Chat", "Tickets", "RAG", "Agente L1", "Copiloto L2", "Soporte remoto", "Dashboard ejecutivo"],
   },
   {
     version: "V2",

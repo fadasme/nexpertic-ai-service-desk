@@ -9,7 +9,7 @@ type ConsentSession = {
   consentGrantedAt?: string;
   consentRejectedAt?: string;
   expiresInMinutes: number;
-  provider: "RustDesk";
+  provider: "Soporte remoto";
   status: string;
   ticketId: string;
 };
@@ -43,24 +43,24 @@ export function ConsentDecision({ initialSession, token }: ConsentDecisionProps)
       if (payload.data) {
         setSession(payload.data);
         if (!response.ok) {
-          setMessage(payload.error ?? "No se pudo registrar la decision.");
+          setMessage(payload.error ?? "No se pudo registrar la autorización.");
           return;
         }
-        setMessage(decision === "approve" ? "Consentimiento aprobado. El analista ya puede conectar." : "Consentimiento rechazado. La sesion no podra conectarse.");
+        setMessage(decision === "approve" ? "Autorización aprobada. El analista ya puede conectar." : "Autorización rechazada. La conexión no podrá continuar.");
         return;
       }
 
-      setMessage(payload.error ?? "No se pudo registrar la decision.");
+      setMessage(payload.error ?? "No se pudo registrar la autorización.");
     });
   }
 
   return (
     <div className="consentShell">
       <section className="consentCard">
-        <p className="eyebrow">Autorizacion de soporte remoto</p>
+        <p className="eyebrow">Autorización de soporte remoto</p>
         <h1>Solicitud {session.code}</h1>
         <p>
-          Un analista solicita iniciar una sesion {session.provider} asociada al ticket {session.ticketId}. Aprueba solo si reconoces esta solicitud.
+          Un analista solicita iniciar una sesión de soporte remoto asociada al ticket {session.ticketId}. Aprueba solo si reconoces esta solicitud.
         </p>
         <div className="consentFacts">
           <span>Estado: {session.status}</span>
@@ -70,13 +70,13 @@ export function ConsentDecision({ initialSession, token }: ConsentDecisionProps)
         </div>
         <div className="consentActions">
           <button className="primary" disabled={actionsDisabled} onClick={() => decide("approve")} type="button">
-            Aprobar soporte remoto
+            Autorizar soporte remoto
           </button>
           <button disabled={actionsDisabled} onClick={() => decide("reject")} type="button">
             Rechazar
           </button>
         </div>
-        {isExpired && !alreadyAnswered ? <p className="permissionHint">Este enlace de consentimiento expiro. Solicita una nueva invitacion a soporte.</p> : null}
+        {isExpired && !alreadyAnswered ? <p className="permissionHint">Este enlace de autorización expiró. Solicita una nueva invitación a soporte.</p> : null}
         {message ? <p className="permissionHint">{message}</p> : null}
       </section>
     </div>

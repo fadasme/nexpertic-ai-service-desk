@@ -1,12 +1,13 @@
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/nexera/auth-store";
 import { getAuthMode } from "@/lib/nexera/runtime-config";
-import { verifySessionCookie, sessionCookieName } from "@/lib/nexera/session-cookie";
+import { verifySessionCookie, sessionCookieName, sessionLockCookieName, verifySessionLockCookie } from "@/lib/nexera/session-cookie";
 import { DEFAULT_TENANT_ID } from "@/lib/nexera/tenant-context";
 import { listSecurityEvents } from "@/lib/nexera/security-event-store";
 import { listStoredTickets } from "@/lib/nexera/ticket-store";
 import { listUserAccounts } from "@/lib/nexera/user-store";
 import { AuthReturnLink } from "./AuthReturnLink";
+import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
 function roleRoute(role: string) {
   if (role === "Usuario") return { href: "/usuario", label: "Portal usuario" };
@@ -19,23 +20,26 @@ export default async function Home() {
   const tenantId = DEFAULT_TENANT_ID;
   const cookieStore = await cookies();
   const signedSession = await verifySessionCookie(cookieStore.get(sessionCookieName())?.value);
+  const sessionLock = await verifySessionLockCookie(cookieStore.get(sessionLockCookieName())?.value);
   const authMode = getAuthMode();
   const session = signedSession ?? getSession("Usuario");
   const tickets = await listStoredTickets({ tenantId });
   const users = await listUserAccounts(tenantId);
   const securityEvents = await listSecurityEvents(undefined, tenantId);
-  const authLocked = authMode === "production" && !signedSession;
+  const authLocked = Boolean(sessionLock) || (authMode === "production" && !signedSession);
   const route = roleRoute(session.role);
   const alertCount = securityEvents.filter((event) => event.severity !== "info").length;
   const openTickets = tickets.filter((ticket) => ticket.status !== "Resuelto").length;
-
   if (authLocked) {
     return (
       <main className="authLockShell">
         <section className="authLockCard">
           <p className="eyebrow">Acceso protegido</p>
           <h1>Nexpertic AI Service Desk</h1>
-          <p>Esta instancia ya exige una sesion firmada. Inicia con OIDC o usa una cookie valida para continuar.</p>
+          <p>
+            Esta instancia está bloqueada o requiere una sesión segura. Abre la pantalla de acceso para volver a
+            entrar con usuario y clave.
+          </p>
           <div className="authLockActions">
             <AuthReturnLink className="buttonLike primary">Abrir pantalla de acceso</AuthReturnLink>
             <form action="/api/auth/logout" method="post">
@@ -95,13 +99,16 @@ export default async function Home() {
               <span><strong>{tickets.length}</strong> tickets</span>
               <span><strong>{users.length}</strong> usuarios</span>
               <span><strong>{alertCount}</strong> alertas</span>
+              <SessionExpiryTicker expiresAt={session.expiresAt} />
             </div>
-            <div className="topbarActions">
-              <a className="buttonLike" href="/signin">Iniciar sesión</a>
-              <a className="buttonLike primary" href={route.href}>Continuar como {session.role}</a>
-            </div>
+          <div className="topbarActions">
+            <a className="buttonLike" href="/signin">Iniciar sesión</a>
+            <a className="buttonLike primary" href={route.href}>Continuar como {session.role}</a>
           </div>
-        </header>
+          <SessionExpiryTicker mode="banner" expiresAt={session.expiresAt} />
+        </div>
+      </header>
+      <SessionExpiryTicker mode="modal" expiresAt={session.expiresAt} />
 
         <section className="roleLanding">
           <div>
@@ -115,9 +122,6 @@ export default async function Home() {
           <div className="roleLandingActions">
             <a className="buttonLike primary" href={route.href}>
               Ir a {route.label}
-            </a>
-            <a className="buttonLike" href="/signin">
-              Ver acceso demo
             </a>
           </div>
         </section>
@@ -148,14 +152,7 @@ export default async function Home() {
               La plataforma ya está separada por experiencia: usuario, analista, ejecutivo y admin. Cada una abre su
               propia superficie de trabajo.
             </p>
-          </div>
-          <div className="homeHeroActions">
-            <a className="buttonLike primary" href="/signin">
-              Iniciar sesión
-            </a>
-            <a className="buttonLike" href={route.href}>
-              Continuar como {session.role}
-            </a>
+            <SessionExpiryTicker mode="banner" expiresAt={session.expiresAt} />
           </div>
         </section>
 

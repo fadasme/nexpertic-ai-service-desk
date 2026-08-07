@@ -3,13 +3,13 @@ const layers = [
   ["API Nexpertic", "Contratos propios, RBAC, auditoria y orquestacion"],
   ["Core GLPI", "Tickets, workflow, inventario y CMDB operacional"],
   ["IA / RAG", "Clasificacion, copiloto, conocimiento y trazabilidad"],
-  ["RustDesk", "Soporte remoto con consentimiento y auditoria"],
+  ["Soporte remoto", "Soporte remoto con consentimiento y auditoria"],
 ];
 
 const deploymentModes = [
   ["SaaS", "Nexpertic opera plataforma, actualizaciones, observabilidad y escalado."],
-  ["On-Premise", "Cliente controla datos, GLPI, RustDesk y modelos locales si aplica."],
-  ["Hibrido", "IA o RustDesk local con gestion SaaS y conectores controlados."],
+  ["On-Premise", "Cliente controla datos, GLPI, soporte remoto y modelos locales si aplica."],
+  ["Hibrido", "IA o soporte remoto local con gestion SaaS y conectores controlados."],
 ];
 
 export function DeploymentArchitecture() {

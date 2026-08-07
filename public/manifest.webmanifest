@@ -1,0 +1,17 @@
+{
+  "name": "Nexpertic AI Service Desk",
+  "short_name": "Nexpertic",
+  "description": "Plataforma de service desk con vistas por rol, gobierno y soporte asistido por IA.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef2ef",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/nexpertic-icon.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

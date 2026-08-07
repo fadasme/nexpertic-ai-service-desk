@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { SessionUser, UserAccount } from "@/lib/nexera/contracts";
+import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
 type AccessControlPanelProps = {
   initialSession: SessionUser;
@@ -36,6 +37,13 @@ export function AccessControlPanel({ initialSession, users }: AccessControlPanel
     });
   }
 
+  function lockSession() {
+    startTransition(async () => {
+      await fetch("/api/auth/lock", { method: "POST" });
+      window.location.href = "/signin?mode=unlock&returnTo=/";
+    });
+  }
+
   return (
     <section className="accessPanel" aria-label="Control de acceso">
       <div>
@@ -45,7 +53,11 @@ export function AccessControlPanel({ initialSession, users }: AccessControlPanel
         <div className="accessSummary">
           <span className="badge">{session.permissions.length} permisos</span>
           <span className="badge warning">{session.role}</span>
+          <SessionExpiryTicker className="warning" expiresAt={session.expiresAt} />
         </div>
+        <p className="permissionHint">
+          La sesion se actualiza en vivo y expira automaticamente para mantener el acceso controlado.
+        </p>
       </div>
       <div className="roleSwitcher">
         {users.map((user) => (
@@ -54,6 +66,10 @@ export function AccessControlPanel({ initialSession, users }: AccessControlPanel
             <small>{user.role}</small>
           </button>
         ))}
+        <button disabled={isPending} onClick={lockSession} type="button">
+          Bloquear sesión
+          <small>pide usuario y clave</small>
+        </button>
         <button disabled={isPending} onClick={logout} type="button">
           Cerrar sesion
           <small>restablece acceso</small>

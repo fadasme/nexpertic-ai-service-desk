@@ -14,9 +14,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     return (
       <main className="consentShell">
         <section className="consentCard">
-          <p className="eyebrow">Autorizacion de soporte remoto</p>
+          <p className="eyebrow">Autorización de soporte remoto</p>
           <h1>Token requerido</h1>
-          <p>Abre el enlace de consentimiento enviado por soporte para aprobar o rechazar la sesion.</p>
+          <p>Abre el enlace de autorización enviado por soporte para aprobar o rechazar la sesión.</p>
         </section>
       </main>
     );
@@ -38,7 +38,7 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
     return (
       <main className="consentShell">
         <section className="consentCard">
-          <p className="eyebrow">Autorizacion de soporte remoto</p>
+          <p className="eyebrow">Autorización de soporte remoto</p>
           <h1>Solicitud no encontrada</h1>
           <p>El enlace puede haber expirado, haber sido respondido o no existir.</p>
         </section>

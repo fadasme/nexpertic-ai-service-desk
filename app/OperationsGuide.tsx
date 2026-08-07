@@ -20,7 +20,7 @@ const operationSteps = [
   },
   {
     title: "4. Soporte remoto",
-    target: "RustDesk",
+    target: "Soporte remoto",
     talkTrack: "La sesion remota queda persistida y auditada, con invitacion y estado controlado.",
   },
   {

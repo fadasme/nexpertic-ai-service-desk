@@ -1,6 +1,6 @@
 import type { SessionUser, UserRole } from "./contracts";
 import { allowsDemoAuthFallback } from "./runtime-config";
-import { cookieValue, sessionCookieName, verifySessionCookie } from "./session-cookie";
+import { cookieValue, getSessionTtlMinutes, sessionCookieName, verifySessionCookie } from "./session-cookie";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
 
 export const permissionsByRole: Record<UserRole, string[]> = {
@@ -44,6 +44,7 @@ export const usersByRole: Record<UserRole, Omit<SessionUser, "permissions" | "ro
 export function getSession(role: UserRole = "Analista"): SessionUser {
   return {
     ...usersByRole[role],
+    expiresAt: new Date(Date.now() + getSessionTtlMinutes() * 60 * 1000).toISOString(),
     role,
     permissions: permissionsByRole[role],
   };

@@ -43,6 +43,18 @@ type TicketClassification = TicketDraftSignal & {
   isSecurity: boolean;
 };
 
+type ClarificationPrompt = {
+  label: string;
+  text: string;
+};
+
+type GlpiStatusSnapshot = {
+  configured: boolean;
+  maxRetries: number;
+  requiredEnv: string[];
+  timeoutMs: number;
+};
+
 type ServiceDeskConsoleProps = {
   initialAuditEvents: AuditEvent[];
   initialKnowledgeArticles: KnowledgeArticle[];
@@ -157,9 +169,117 @@ function previewTicketSignal(description: string): TicketDraftSignal | null {
   return { action, category, confidence, priority, summary };
 }
 
+function buildClarificationPrompts(signal: TicketDraftSignal | null): ClarificationPrompt[] {
+  if (!signal) {
+    return [
+      { label: "Contexto", text: "¿Desde cuándo ocurre el problema y a cuántos usuarios afecta?" },
+      { label: "Impacto", text: "¿Qué proceso de trabajo se ve bloqueado o degradado?" },
+      { label: "Evidencia", text: "¿Puedes compartir captura, mensaje de error o codigo exacto?" },
+    ];
+  }
+
+  if (signal.category === "Identidad") {
+    return [
+      { label: "Acceso", text: "¿El fallo ocurre en correo, portal o ambos?" },
+      { label: "MFA", text: "¿Te aparece un error de MFA o bloqueo condicional?" },
+      { label: "Alcance", text: "¿El problema afecta a un usuario o a varios?" },
+    ];
+  }
+
+  if (signal.category === "Conectividad") {
+    return [
+      { label: "Red", text: "¿La conexion falla solo en oficina, remoto o en ambos contextos?" },
+      { label: "VPN", text: "¿La caida ocurre al conectar, autenticar o tras algunos minutos?" },
+      { label: "Impacto", text: "¿Afecta solo a la VPN o tambien a otros sistemas internos?" },
+    ];
+  }
+
+  if (signal.category === "Endpoint") {
+    return [
+      { label: "Equipo", text: "¿Es notebook o desktop y desde cuando notas la lentitud?" },
+      { label: "Sintomas", text: "¿La lentitud aparece al iniciar, abrir apps o navegar?" },
+      { label: "Uso", text: "¿El equipo muestra disco, RAM o CPU al 100%?" },
+    ];
+  }
+
+  if (signal.category === "Seguridad") {
+    return [
+      { label: "Indicador", text: "¿Que alerta, correo o bloqueo disparo la sospecha?" },
+      { label: "Urgencia", text: "¿Hay riesgo para credenciales, datos o continuidad?" },
+      { label: "Evidencia", text: "¿Puedes adjuntar mensajes, remitentes o capturas?" },
+    ];
+  }
+
+  return [
+    { label: "Detalle", text: "¿Puedes describir el comportamiento exacto y el resultado esperado?" },
+    { label: "Tiempo", text: "¿Desde cuando ocurre y con que frecuencia?" },
+    { label: "Accion", text: "¿Que intentaste antes de reportarlo?" },
+  ];
+}
+
+function buildStructuredDraft(
+  signal: TicketDraftSignal | null,
+  prompts: ClarificationPrompt[],
+  priority: TicketPriority,
+  currentDraft: string,
+) {
+  const baseTitle = signal?.category ?? "General";
+  const intro = currentDraft.trim() || `Solicitud relacionada con ${baseTitle.toLowerCase()}.`;
+  const promptLines = prompts.map((prompt) => `- ${prompt.label}: ${prompt.text}`).join("\n");
+  const classificationLine = signal
+    ? `Clasificacion sugerida: ${signal.category} · Prioridad ${priority} · ${signal.confidence}% confianza.`
+    : "Clasificacion sugerida pendiente de analisis.";
+  const actionLine = signal?.action ?? "Clasificar manualmente";
+
+  return [
+    `Asunto sugerido: ${actionLine}.`,
+    intro,
+    "",
+    classificationLine,
+    `Siguiente accion IA: ${actionLine}.`,
+    "",
+    "Datos a confirmar:",
+    promptLines,
+  ].join("\n");
+}
+
 async function responseError(response: Response, fallback: string) {
   const payload = (await response.json().catch(() => ({}))) as { error?: string };
   return payload.error ?? fallback;
+}
+
+function buildGlpiNote(ticket: Ticket, nextStep: TicketWorkflowStep | null, remoteSession: RemoteSupportSession | null) {
+  const nextStepText = nextStep ? `${nextStep.label.toLowerCase()} como proximo movimiento` : "mantener seguimiento manual";
+  const remoteState = remoteSession
+    ? remoteSession.consentGrantedAt
+      ? "la sesion remota ya esta habilitada"
+      : "la sesion remota aun espera consentimiento"
+    : "no hay sesion remota abierta";
+
+  return [
+    `Ticket ${ticket.id}`,
+    `Estado: ${ticket.status}`,
+    `Responsable: ${ticket.owner}`,
+    `Categoria: ${ticket.category}`,
+    `Prioridad: ${ticket.priority}`,
+    `Referencia GLPI: ${ticket.externalRef}`,
+    `Resumen IA: ${ticket.aiSummary}`,
+    `Siguiente accion: ${nextStepText}.`,
+    `Contexto remoto: ${remoteState}.`,
+  ].join(" | ");
+}
+
+function validateTicketDraft(description: string) {
+  const normalized = description.trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return "Escribe un problema o usa un borrador sugerido antes de crear el ticket.";
+  }
+
+  if (normalized.length < 12) {
+    return "El ticket necesita más contexto. Agrega al menos un síntoma o impacto más claro.";
+  }
+
+  return null;
 }
 
 export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticles, initialRemoteSessions, initialSession, initialTickets }: ServiceDeskConsoleProps) {
@@ -174,6 +294,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   const [notice, setNotice] = useState<ConsoleNotice | null>(null);
   const [remoteSessions, setRemoteSessions] = useState<RemoteSupportSession[]>(initialRemoteSessions);
   const [ticketAction, setTicketAction] = useState<TicketActionState>({ kind: "idle" });
+  const [glpiStatus, setGlpiStatus] = useState<GlpiStatusSnapshot | null>(null);
   const [isPending, startTransition] = useTransition();
   const quickTemplates: QuickTemplate[] = [
     { label: "Correo M365", text: "No puedo iniciar sesion en Microsoft 365. Pide MFA y acceso urgente." },
@@ -186,9 +307,17 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       text: "Hola, soy el copiloto de Nexpertic. Describe el problema y preparare el ticket con contexto tecnico.",
     },
   ]);
+  const actionBusy = ticketAction.kind !== "idle";
+  const actionLabel = ticketAction.kind === "idle" ? null : ticketAction.label;
   const ticketSignal = useMemo(() => previewTicketSignal(draft), [draft]);
-  const ticketSignalTone = ticketSignal ? (ticketSignal.priority === "Alta" ? "danger" : "warning") : "warning";
+  const clarificationPrompts = useMemo(() => buildClarificationPrompts(ticketSignal), [ticketSignal]);
   const ticketDraftPriority = draftPriority === "Sugerida" ? ticketSignal?.priority ?? "Media" : draftPriority;
+  const structuredDraft = useMemo(
+    () => buildStructuredDraft(ticketSignal, clarificationPrompts, ticketDraftPriority, draft),
+    [clarificationPrompts, draft, ticketDraftPriority, ticketSignal],
+  );
+  const ticketDraftReady = Boolean(draft.trim() || structuredDraft.trim());
+  const ticketSignalTone = ticketSignal ? (ticketSignal.priority === "Alta" ? "danger" : "warning") : "warning";
   const ticketPriorityMode = draftPriority === "Sugerida" ? "Automatica" : "Manual";
 
   useEffect(() => {
@@ -196,6 +325,20 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       setDraftPriority(ticketSignal?.priority ?? "Media");
     }
   }, [draftPriority, ticketSignal?.priority]);
+
+  useEffect(() => {
+    if (!draft.trim() || !ticketSignal || actionBusy) return;
+
+    setMessages((current) => {
+      const lastMessage = current[current.length - 1];
+      const autoDraftMessage = `Borrador automatico: ${ticketSignal.category} · ${ticketSignal.action}.`;
+      if (lastMessage?.author === "agent" && lastMessage.text === autoDraftMessage) {
+        return current;
+      }
+
+      return [...current, agentMessage(autoDraftMessage)];
+    });
+  }, [actionBusy, draft, ticketSignal]);
 
   const filteredTickets = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -212,6 +355,22 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       return matchesPriority && matchesQuery;
     });
   }, [priority, query, tickets]);
+
+  const ticketSummary = useMemo(() => {
+    const total = tickets.length;
+    const open = tickets.filter((ticket) => ticket.status !== "Resuelto").length;
+    const high = tickets.filter((ticket) => ticket.priority === "Alta" || ticket.priority === "Critica").length;
+    const assigned = tickets.filter((ticket) => ticket.owner !== "Mesa L1").length;
+    const remoteReady = remoteSessions.filter((sessionItem) => Boolean(sessionItem.consentGrantedAt)).length;
+
+    return {
+      assigned,
+      high,
+      open,
+      remoteReady,
+      total,
+    };
+  }, [remoteSessions, tickets]);
 
   const selectedTicket = tickets.find((ticket) => ticket.id === selectedId) ?? tickets[0] ?? null;
   const selectedAudit = selectedTicket ? auditEvents.filter((event) => event.ticketId === selectedTicket.id) : [];
@@ -244,11 +403,51 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
         },
       ]
     : [];
+  const selectedGlpiState = selectedTicket
+    ? selectedTicket.externalRef === "Pendiente GLPI"
+      ? {
+          badge: "Pendiente GLPI",
+          detail: "Todavía no hay referencia externa. Puedes sincronizar ahora o dejar el caso solo en Nexpertic.",
+          tone: "warning" as const,
+        }
+      : {
+          badge: selectedTicket.externalRef,
+          detail: `El ticket ya quedó enlazado con GLPI como ${selectedTicket.externalRef}.`,
+          tone: "ok" as const,
+      }
+    : null;
+  const selectedGlpiGuide = glpiStatus
+    ? glpiStatus.configured
+      ? {
+          detail: `GLPI listo · timeout ${glpiStatus.timeoutMs}ms · reintentos ${glpiStatus.maxRetries}.`,
+          tone: "ok" as const,
+          title: "GLPI configurado",
+        }
+      : {
+          detail: `Faltan ${glpiStatus.requiredEnv.join(", ")} para activar la sincronización.`,
+          tone: "warning" as const,
+          title: "GLPI no configurado",
+        }
+    : null;
+  const copilotHints = selectedTicket
+    ? [
+        ticketNextStep ? `Siguiente paso: ${ticketNextStep.label.toLowerCase()}.` : "No hay un siguiente paso sugerido todavía.",
+        selectedTicket.externalRef === "Pendiente GLPI"
+          ? "Si el caso ya es de cliente, sincroniza con GLPI para abrir trazabilidad externa."
+          : "GLPI ya tiene referencia; puedes actualizar estado o pedir pull de regreso.",
+        remoteSession
+          ? remoteSession.consentGrantedAt
+            ? "La sesión remota ya tiene consentimiento; puedes conectar cuando corresponda."
+            : "La sesión remota está creada pero aún falta consentimiento del usuario."
+          : "No hay sesión remota activa para este ticket.",
+      ]
+    : [];
   const canCreateTicket = hasPermission(session, "ticket:create");
   const canUpdateTicket = hasPermission(session, "ticket:update");
   const canSyncGlpi = hasPermission(session, "ticket:sync-glpi");
+  const glpiConfigured = glpiStatus?.configured ?? false;
   const canPullGlpi = canSyncGlpi && Boolean(selectedTicket?.externalRef.match(/^GLPI-\d+$/));
-  const canUseRustDesk = hasPermission(session, "rustdesk:session");
+  const canUseRemoteSupport = hasPermission(session, "rustdesk:session");
   const canReadAudit = hasPermission(session, "audit:read");
   const isSelfServiceUser = hasPermission(session, "ticket:read:self") && !hasPermission(session, "ticket:read");
   const ticketPanelCopy = isSelfServiceUser
@@ -273,9 +472,17 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
         eyebrow: "Copiloto L2",
         heading: "Detalle asistido",
       };
-  const actionBusy = ticketAction.kind !== "idle";
-  const actionLabel = ticketAction.kind === "idle" ? null : ticketAction.label;
   const ticketProgressStep = getTicketProgressStep(ticketAction.kind);
+  const selectedTicketOverview = selectedTicket
+    ? {
+        statusLine: `${selectedTicket.status} · ${selectedTicket.owner} · IA ${selectedTicket.confidence}%`,
+        summaryLine:
+          selectedTicket.externalRef === "Pendiente GLPI"
+            ? "Aun no existe referencia externa."
+            : `Referencia externa ${selectedTicket.externalRef}.`,
+      }
+    : null;
+  const selectedGlpiNote = selectedTicket ? buildGlpiNote(selectedTicket, ticketNextStep, remoteSession) : null;
 
   useEffect(() => {
     function onRoleChange(event: Event) {
@@ -285,6 +492,33 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     window.addEventListener("nexera:role-change", onRoleChange);
     return () => window.removeEventListener("nexera:role-change", onRoleChange);
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadGlpiStatus() {
+      try {
+        const response = await fetch("/api/integrations/glpi/status", {
+          headers: { "x-nexera-role": session.role },
+        });
+
+        if (!response.ok) return;
+
+        const result = (await response.json()) as { data: GlpiStatusSnapshot };
+        if (isActive) {
+          setGlpiStatus(result.data);
+        }
+      } catch {
+        // Keep the previous status if the API is unavailable.
+      }
+    }
+
+    void loadGlpiStatus().catch(() => undefined);
+
+    return () => {
+      isActive = false;
+    };
+  }, [session.role]);
 
   useEffect(() => {
     if (!selectedTicket || !canReadAudit) return;
@@ -315,7 +549,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   }, [canReadAudit, selectedTicket, session.role]);
 
   useEffect(() => {
-    if (!selectedTicket || !canUseRustDesk) return;
+    if (!selectedTicket || !canUseRemoteSupport) return;
 
     let isActive = true;
 
@@ -340,7 +574,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     return () => {
       isActive = false;
     };
-  }, [canUseRustDesk, selectedTicket, session.role]);
+  }, [canUseRemoteSupport, selectedTicket, session.role]);
 
   async function appendAudit(ticketId: string, actor: AuditEvent["actor"], action: string, detail: string) {
     const fallbackEvent: AuditEvent = {
@@ -373,6 +607,13 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   }
 
   async function createTicket(description: string) {
+    const validationError = validateTicketDraft(description);
+    if (validationError) {
+      setNotice({ kind: "warning", text: validationError });
+      setMessages((current) => [...current, agentMessage(validationError)]);
+      return;
+    }
+
     const effectivePriority = draftPriority === "Sugerida" ? ticketSignal?.priority ?? "Media" : draftPriority;
     const payload: CreateTicketInput = {
       description,
@@ -421,14 +662,14 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     setTickets((current) => [ticket, ...current]);
     setSelectedId(ticket.id);
     const knowledgeSuggestion = suggestKnowledgeArticle(initialKnowledgeArticles, description);
-      setMessages((current) => [
-        ...current,
-        agentMessage(
-          knowledgeSuggestion
-            ? `3/3 Sugerencia RAG: ${knowledgeSuggestion.id} · ${knowledgeSuggestion.title} (${knowledgeSuggestion.qualityScore}% calidad).`
-            : "3/3 Ticket listo para sincronizar con GLPI.",
-        ),
-      ]);
+    setMessages((current) => [
+      ...current,
+      agentMessage(
+        knowledgeSuggestion
+          ? `3/3 Sugerencia RAG: ${knowledgeSuggestion.id} · ${knowledgeSuggestion.title} (${knowledgeSuggestion.qualityScore}% calidad).`
+          : "3/3 Ticket listo para sincronizar con GLPI.",
+      ),
+    ]);
     if (!storedRemotely) {
       void appendAudit(ticket.id, "Usuario", "Ticket creado via chat", description);
       void appendAudit(ticket.id, "Agente IA", "Clasificacion y enriquecimiento", `${ticket.category}, prioridad ${ticket.priority}, confianza ${ticket.confidence}%.`);
@@ -444,8 +685,15 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
 
   function submitTicket(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const description = draft.trim();
-    if (!description || !canCreateTicket) return;
+    if (!canCreateTicket || actionBusy) return;
+
+    const description = draft.trim() || structuredDraft.trim();
+    const validationError = validateTicketDraft(description);
+    if (validationError) {
+      setNotice({ kind: "warning", text: validationError });
+      setMessages((current) => [...current, agentMessage(validationError)]);
+      return;
+    }
 
     setDraft("");
     startTransition(() => {
@@ -458,6 +706,24 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
 
     setDraft(template.text);
     setNotice({ kind: "success", text: `Plantilla cargada: ${template.label}. Puedes enviarla o editarla.` });
+  }
+
+  function applyClarificationPrompt(prompt: ClarificationPrompt) {
+    if (!canCreateTicket || actionBusy) return;
+
+    setDraft((current) => (current.trim() ? `${current.trim()}\n${prompt.text}` : prompt.text));
+    setNotice({ kind: "success", text: `Pregunta agregada: ${prompt.label}.` });
+  }
+
+  function generateDraftFromSignal() {
+    if (!canCreateTicket || actionBusy) return;
+    const suggestedPriority = ticketSignal?.priority ?? "Media";
+
+    setDraft(structuredDraft);
+    if (draftPriority === "Sugerida") {
+      setDraftPriority(suggestedPriority);
+    }
+    setNotice({ kind: "success", text: "Borrador estructurado generado por el copiloto." });
   }
 
   async function updateSelected(status: TicketStatus, owner: string) {
@@ -510,7 +776,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       setTicketAction({ kind: "syncing", label: "Sincronizando GLPI" });
       setNotice({ kind: "warning", text: `Sincronizando ${selectedTicket.id} con GLPI...` });
       const response = await fetch("/api/integrations/glpi/sync", {
-        body: JSON.stringify({ ticketId: selectedTicket.id }),
+        body: JSON.stringify({ note: selectedGlpiNote, ticketId: selectedTicket.id }),
         headers: { "content-type": "application/json", "x-nexera-role": session.role },
         method: "POST",
       });
@@ -534,6 +800,9 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     );
 
     void appendAudit(selectedTicket.id, "GLPI Adapter", "Sincronizacion solicitada", `Referencia operacional ${externalRef}.`);
+    if (selectedGlpiNote) {
+      void appendAudit(selectedTicket.id, "Agente IA", "Nota GLPI enviada", selectedGlpiNote);
+    }
     setNotice({ kind: "success", text: `${selectedTicket.id} sincronizado con referencia ${externalRef}.` });
     setTicketAction({ kind: "idle" });
   }
@@ -568,26 +837,49 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     }
   }
 
+  async function runCopilotSummary() {
+    if (!selectedTicket) return;
+
+    const glpiNote = selectedGlpiNote ?? buildGlpiNote(selectedTicket, ticketNextStep, remoteSession);
+
+    setMessages((current) => [
+      ...current,
+      agentMessage(`Resumen operativo para GLPI: ${glpiNote}`),
+    ]);
+    void appendAudit(selectedTicket.id, "Agente IA", "Nota operativa generada", glpiNote);
+    setNotice({ kind: "success", text: "Resumen operativo agregado al chat del copiloto." });
+  }
+
+  async function copyCopilotNote() {
+    if (!selectedTicket || !selectedGlpiNote) return;
+
+    try {
+      await navigator.clipboard.writeText(selectedGlpiNote);
+      setNotice({ kind: "success", text: "Nota GLPI copiada al portapapeles." });
+      return;
+    } catch {
+      setNotice({ kind: "warning", text: "No se pudo copiar automaticamente. Puedes seleccionar la nota en el chat." });
+    }
+
+    setMessages((current) => [
+      ...current,
+      agentMessage(`Nota GLPI para copiar: ${selectedGlpiNote}`),
+    ]);
+  }
+
+  async function applySuggestedStep() {
+    if (!selectedTicket || !ticketNextStep) return;
+
+    setNotice({ kind: "warning", text: `Aplicando paso sugerido: ${ticketNextStep.label}.` });
+    await updateSelected(ticketNextStep.status, ticketNextStep.owner);
+  }
+
   async function startRemoteSession() {
     if (!selectedTicket) return;
 
-    let supportSession: RemoteSupportSession = {
-      id: `rs-${selectedTicket.id}-${Date.now()}`,
-      ticketId: selectedTicket.id,
-      provider: "RustDesk",
-      code: `RD-${Math.floor(100000 + Math.random() * 899999)}`,
-      status: "Esperando consentimiento",
-      expiresInMinutes: 15,
-      launchUrl: `rustdesk://connect/${selectedTicket.id.toLowerCase()}`,
-      createdAt: new Date().toISOString(),
-      consentExpiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      consentToken: crypto.randomUUID(),
-    };
-    let storedRemotely = false;
-
     try {
-      setTicketAction({ kind: "remote", label: "Preparando RustDesk" });
-      setNotice({ kind: "warning", text: `Preparando sesión RustDesk para ${selectedTicket.id}...` });
+      setTicketAction({ kind: "remote", label: "Preparando Soporte remoto" });
+      setNotice({ kind: "warning", text: `Preparando sesión de soporte remoto para ${selectedTicket.id}...` });
       const response = await fetch("/api/integrations/rustdesk/session", {
         body: JSON.stringify({ ticketId: selectedTicket.id }),
         headers: { "content-type": "application/json", "x-nexera-role": session.role },
@@ -595,27 +887,25 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       });
 
       if (!response.ok) {
-        setNotice({ kind: "error", text: await responseError(response, "No se pudo preparar RustDesk.") });
+        setNotice({ kind: "error", text: await responseError(response, "No se pudo preparar Soporte remoto.") });
         setTicketAction({ kind: "idle" });
         return;
       }
 
       const result = (await response.json()) as { data: RemoteSupportSession };
-      supportSession = result.data;
-      storedRemotely = true;
+      const supportSession = result.data;
+      setRemoteSessions((current) => mergeRemoteSession(current, supportSession));
+      void appendAudit(
+        selectedTicket.id,
+        "Soporte remoto",
+        "Sesión remota preparada",
+        `Invitacion ${supportSession.code} preparada para ${selectedTicket.requester}. Requiere consentimiento del usuario antes de conectar.`,
+      );
+      setNotice({ kind: "success", text: `Sesión de soporte remoto ${supportSession.code} preparada.` });
     } catch {
-      setNotice({ kind: "warning", text: "API no disponible. Sesion RustDesk creada localmente como contingencia." });
-    }
-
-    setRemoteSessions((current) => mergeRemoteSession(current, supportSession));
-    void appendAudit(
-      selectedTicket.id,
-      "RustDesk",
-      "Sesion remota preparada",
-      `Invitacion ${supportSession.code} preparada para ${selectedTicket.requester}. Requiere consentimiento del usuario antes de conectar.`,
-    );
-    if (storedRemotely) {
-      setNotice({ kind: "success", text: `Sesion RustDesk ${supportSession.code} preparada.` });
+      setNotice({ kind: "error", text: "No se pudo contactar la API Soporte remoto. Revisa el backend antes de continuar." });
+      setTicketAction({ kind: "idle" });
+      return;
     }
     setTicketAction({ kind: "idle" });
   }
@@ -623,19 +913,19 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   async function sendRemoteInvite() {
     if (!remoteSession) return;
 
-    let updatedSession: RemoteSupportSession = { ...remoteSession, status: "Invitacion enviada" };
+    let updatedSession: RemoteSupportSession = { ...remoteSession, status: "Invitación enviada" };
 
     try {
       setTicketAction({ kind: "remote", label: "Enviando invitación" });
-      setNotice({ kind: "warning", text: `Enviando invitación RustDesk ${remoteSession.code}...` });
+      setNotice({ kind: "warning", text: `Enviando invitación de soporte remoto ${remoteSession.code}...` });
       const response = await fetch("/api/integrations/rustdesk/session", {
-        body: JSON.stringify({ id: remoteSession.id, status: "Invitacion enviada" }),
+        body: JSON.stringify({ id: remoteSession.id, status: "Invitación enviada" }),
         headers: { "content-type": "application/json", "x-nexera-role": session.role },
         method: "PATCH",
       });
 
       if (!response.ok) {
-        setNotice({ kind: "error", text: await responseError(response, "No se pudo enviar la invitacion RustDesk.") });
+        setNotice({ kind: "error", text: await responseError(response, "No se pudo enviar la invitacion Soporte remoto.") });
         setTicketAction({ kind: "idle" });
         return;
       }
@@ -643,7 +933,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       const result = (await response.json()) as { data: RemoteSupportSession };
       updatedSession = result.data;
     } catch {
-      setNotice({ kind: "error", text: "No se pudo contactar la API RustDesk. La invitacion no fue marcada como enviada." });
+      setNotice({ kind: "error", text: "No se pudo contactar la API Soporte remoto. La invitacion no fue marcada como enviada." });
       setTicketAction({ kind: "idle" });
       return;
     }
@@ -653,10 +943,10 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       ...current,
       {
         author: "agent",
-        text: `Invitacion RustDesk ${updatedSession.code} enviada al usuario. Expira en ${updatedSession.expiresInMinutes} minutos.`,
+        text: `Invitacion Soporte remoto ${updatedSession.code} enviada al usuario. Expira en ${updatedSession.expiresInMinutes} minutos.`,
       },
     ]);
-    void appendAudit(updatedSession.ticketId, "RustDesk", "Invitacion enviada", `Codigo ${updatedSession.code}. Esperando consentimiento.`);
+    void appendAudit(updatedSession.ticketId, "Soporte remoto", "Invitación enviada", `Codigo ${updatedSession.code}. Esperando consentimiento.`);
     setNotice({ kind: "success", text: `Invitacion ${updatedSession.code} enviada.` });
     setTicketAction({ kind: "idle" });
   }
@@ -684,14 +974,14 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
 
       updatedSession = { ...updatedSession, consentGrantedAt };
     } catch {
-      setNotice({ kind: "error", text: "No se pudo contactar la API de consentimiento. La aprobacion no fue registrada." });
+      setNotice({ kind: "error", text: "No se pudo contactar la API de autorización. La aprobación no fue registrada." });
       setTicketAction({ kind: "idle" });
       return;
     }
 
     setRemoteSessions((current) => mergeRemoteSession(current, updatedSession));
-    void appendAudit(updatedSession.ticketId, "Usuario", "Consentimiento RustDesk aprobado", `Sesion ${updatedSession.code}.`);
-    setNotice({ kind: "success", text: `Consentimiento registrado para ${updatedSession.code}.` });
+    void appendAudit(updatedSession.ticketId, "Usuario", "Autorización Soporte remoto aprobado", `Sesion ${updatedSession.code}.`);
+    setNotice({ kind: "success", text: `Autorización registrado para ${updatedSession.code}.` });
     setTicketAction({ kind: "idle" });
   }
 
@@ -701,8 +991,8 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     let updatedSession: RemoteSupportSession = { ...remoteSession, status: "Conectado" };
 
     try {
-      setTicketAction({ kind: "remote", label: "Conectando RustDesk" });
-      setNotice({ kind: "warning", text: `Conectando RustDesk ${remoteSession.code}...` });
+      setTicketAction({ kind: "remote", label: "Conectando soporte remoto" });
+      setNotice({ kind: "warning", text: `Conectando soporte remoto ${remoteSession.code}...` });
       const response = await fetch("/api/integrations/rustdesk/session", {
         body: JSON.stringify({ id: remoteSession.id, status: "Conectado" }),
         headers: { "content-type": "application/json", "x-nexera-role": session.role },
@@ -710,7 +1000,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       });
 
       if (!response.ok) {
-        setNotice({ kind: "error", text: await responseError(response, "No se pudo conectar RustDesk.") });
+        setNotice({ kind: "error", text: await responseError(response, "No se pudo conectar Soporte remoto.") });
         setTicketAction({ kind: "idle" });
         return;
       }
@@ -718,13 +1008,13 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       const result = (await response.json()) as { data: RemoteSupportSession };
       updatedSession = result.data;
     } catch {
-      setNotice({ kind: "error", text: "No se pudo contactar la API RustDesk. La sesion no fue conectada." });
+      setNotice({ kind: "error", text: "No se pudo contactar la API Soporte remoto. La sesion no fue conectada." });
       setTicketAction({ kind: "idle" });
       return;
     }
 
     setRemoteSessions((current) => mergeRemoteSession(current, updatedSession));
-    void appendAudit(updatedSession.ticketId, "RustDesk", "Sesion remota conectada", `Conexion autorizada con codigo ${updatedSession.code}.`);
+    void appendAudit(updatedSession.ticketId, "Soporte remoto", "Sesión remota conectada", `Conexion autorizada con codigo ${updatedSession.code}.`);
     setNotice({ kind: "success", text: `Sesion ${updatedSession.code} conectada.` });
     setTicketAction({ kind: "idle" });
   }
@@ -747,6 +1037,39 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
               <option>Media</option>
             </select>
           </div>
+        </div>
+
+        <div className="pilotSummary" aria-label="Resumen operativo de tickets">
+          <div className="ok">
+            <span>Total</span>
+            <strong>{ticketSummary.total}</strong>
+          </div>
+          <div className="warning">
+            <span>Abiertos</span>
+            <strong>{ticketSummary.open}</strong>
+          </div>
+          <div className="danger">
+            <span>Alta/Critica</span>
+            <strong>{ticketSummary.high}</strong>
+          </div>
+          <div className="ok">
+            <span>Asignados</span>
+            <strong>{ticketSummary.assigned}</strong>
+          </div>
+          <p>
+            {ticketSummary.remoteReady
+              ? `${ticketSummary.remoteReady} sesiones remotas ya tienen consentimiento y están listas para conectar.`
+              : "Todavía no hay sesiones remotas listas para conectar con consentimiento."}
+          </p>
+        </div>
+
+        <div className="roleLandingActions">
+          <a className="buttonLike primary" href="#usuarios">
+            Crear nuevo ticket
+          </a>
+          <a className="buttonLike" href="#api">
+            Ver integraciones
+          </a>
         </div>
 
         <div className="ticketList">
@@ -798,9 +1121,54 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
                 {selectedTicket.id} mantiene trazabilidad activa con {selectedRemoteState.toLowerCase()} y {selectedTicket.confidence}% de confianza IA.
               </p>
             </div>
+            {selectedTicketOverview ? (
+              <div className="ticketActionLane">
+                <div className="ticketActionCard">
+                  <span>Lectura rapida</span>
+                  <strong>{selectedTicketOverview.statusLine}</strong>
+                  <p>{selectedTicketOverview.summaryLine}</p>
+                </div>
+                <div className="ticketActionCard">
+                  <span>Copiloto operativo</span>
+                  <strong>{ticketNextStep ? ticketNextStep.label : "Sin accion sugerida"}</strong>
+                  <p>{ticketNextStep ? ticketNextStep.detail : "Este ticket no tiene un siguiente paso predefinido."}</p>
+                </div>
+              </div>
+            ) : null}
+            {selectedGlpiState ? (
+              <div className={`ticketWorkflowCallout ${selectedGlpiState.tone}`}>
+                <span>GLPI</span>
+                <strong>{selectedGlpiState.badge}</strong>
+                <p>{selectedGlpiState.detail}</p>
+              </div>
+            ) : null}
+            {selectedGlpiGuide ? (
+              <div className={`ticketWorkflowCallout ${selectedGlpiGuide.tone}`}>
+                <span>Estado GLPI</span>
+                <strong>{selectedGlpiGuide.title}</strong>
+                <p>{selectedGlpiGuide.detail}</p>
+              </div>
+            ) : null}
+            {selectedGlpiNote ? (
+              <div className="glpiNotePreview">
+                <span>Vista previa GLPI</span>
+                <strong>Nota operativa lista para copiar o enviar</strong>
+                <p>{selectedGlpiNote}</p>
+              </div>
+            ) : null}
             <div className="copilotPanel">
               <strong>{selectedTicket.id}: {selectedTicket.title}</strong>
               <p>{selectedTicket.aiSummary}</p>
+              {copilotHints.length ? (
+                <div className="copilotHints" aria-label="Sugerencias del copiloto">
+                  {copilotHints.map((hint) => (
+                    <div key={hint}>
+                      <span />
+                      <p>{hint}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {notice ? <p className={`consoleNotice ${notice.kind}`} role="status">{notice.text}</p> : null}
               {actionBusy ? <p className="permissionHint">Operando: {actionLabel?.toLowerCase()}.</p> : null}
               <div className="ticketJourney" aria-label="Progreso del ticket">
@@ -833,8 +1201,16 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
                   <p>{ticketNextStep.detail}</p>
                 </div>
               ) : null}
-              {canUpdateTicket || canSyncGlpi || canUseRustDesk ? (
+              {canUpdateTicket || canSyncGlpi || canUseRemoteSupport ? (
                 <div className="actionStack">
+                  <button
+                    className="primary"
+                    disabled={!canUpdateTicket || actionBusy || !ticketNextStep}
+                    onClick={() => void applySuggestedStep()}
+                    type="button"
+                  >
+                    Aplicar siguiente paso
+                  </button>
                   {ticketWorkflowSteps.map((step) => (
                     <button
                       className={step.tone === "ready" ? "primary" : ""}
@@ -846,13 +1222,24 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
                       {step.label}
                     </button>
                   ))}
-                  <button disabled={!canSyncGlpi || actionBusy} onClick={() => void syncSelectedWithGlpi()} type="button">Sincronizar GLPI</button>
-                  <button disabled={!canPullGlpi || actionBusy} onClick={() => void pullSelectedFromGlpi()} type="button">Actualizar desde GLPI</button>
-                  <button disabled={!canUseRustDesk || actionBusy} onClick={startRemoteSession} type="button">Sesion RustDesk</button>
+                  <button disabled={actionBusy} onClick={() => void runCopilotSummary()} type="button">
+                    Resumir caso
+                  </button>
+                  <button disabled={actionBusy} onClick={() => void copyCopilotNote()} type="button">
+                    Copiar nota GLPI
+                  </button>
+                  <button disabled={!canSyncGlpi || !glpiConfigured || actionBusy} onClick={() => void syncSelectedWithGlpi()} type="button">Sincronizar GLPI</button>
+                  <button disabled={!canPullGlpi || !glpiConfigured || actionBusy} onClick={() => void pullSelectedFromGlpi()} type="button">Actualizar desde GLPI</button>
+                  <button disabled={!canUseRemoteSupport || actionBusy} onClick={startRemoteSession} type="button">Sesión de soporte remoto</button>
                 </div>
               ) : (
                 <p className="permissionHint">Tu solicitud ya esta registrada. El equipo de soporte actualizara el estado y dejara trazabilidad visible cuando corresponda.</p>
               )}
+              {canSyncGlpi && !glpiConfigured ? (
+                <p className="permissionHint">
+                  GLPI todavía no está listo. Completa la configuración del backend antes de usar la sincronización.
+                </p>
+              ) : null}
             </div>
             {remoteSession?.ticketId === selectedTicket.id ? (
               <div className="remoteSessionCard">
@@ -864,19 +1251,19 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
                 <div className="ticketMeta">
                   <span>{remoteSession.provider}</span>
                   <span>Expira en {remoteSession.expiresInMinutes} min</span>
-                  <span>{remoteSession.consentGrantedAt ? "Consentimiento registrado" : "Consentimiento pendiente"}</span>
+                  <span>{remoteSession.consentGrantedAt ? "Autorización registrada" : "Autorización pendiente"}</span>
                   <span>{remoteSession.launchUrl}</span>
                 </div>
                 {remoteSession.consentToken.includes(".") ? (
                   <a className="consentLink" href={`/consentimiento-rustdesk?token=${remoteSession.consentToken}`} target="_blank" rel="noreferrer">
-                    Abrir portal de consentimiento
+                    Abrir portal de autorización
                   </a>
                 ) : (
-                  <span className="permissionHint">Portal de consentimiento disponible cuando la API firma el token.</span>
+                  <span className="permissionHint">Portal de autorización disponible cuando la API firma el token.</span>
                 )}
                 <div className="actionStack">
-                  <button className="primary" disabled={remoteSession.status !== "Esperando consentimiento" || actionBusy} onClick={() => void sendRemoteInvite()} type="button">Enviar invitacion</button>
-                  <button disabled={Boolean(remoteSession.consentGrantedAt) || actionBusy} onClick={() => void grantRemoteConsent()} type="button">Registrar consentimiento</button>
+                  <button className="primary" disabled={remoteSession.status !== "Esperando consentimiento" || actionBusy} onClick={() => void sendRemoteInvite()} type="button">Enviar invitación</button>
+                  <button disabled={Boolean(remoteSession.consentGrantedAt) || actionBusy} onClick={() => void grantRemoteConsent()} type="button">Registrar autorización</button>
                   <button disabled={!remoteSession.consentGrantedAt || remoteSession.status === "Conectado" || actionBusy} onClick={() => void connectRemoteSession()} type="button">Conectar</button>
                 </div>
               </div>
@@ -928,6 +1315,20 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
             <strong>{selectedTicket?.id ?? "Sin seleccionar"}</strong>
             <small>{actionBusy ? `${ticketProgressStep} · ${actionLabel}` : "Flujo listo para nueva solicitud"}</small>
           </div>
+          <div className="ticketComposerState" aria-label="Estado de preparación del ticket">
+            <div className={ticketDraftReady ? "ready" : "pending"}>
+              <span>{ticketDraftReady ? "Listo" : "Pendiente"}</span>
+              <strong>{ticketDraftReady ? "Borrador preparado" : "Escribe o genera un borrador"}</strong>
+            </div>
+            <div className={ticketSignal ? "ready" : "pending"}>
+              <span>{ticketSignal ? "IA" : "Contexto"}</span>
+              <strong>{ticketSignal ? `Categoria ${ticketSignal.category}` : "Agrega contexto para clasificar"}</strong>
+            </div>
+            <div className={ticketDraftPriority !== "Sugerida" ? "ready" : "pending"}>
+              <span>{ticketDraftPriority}</span>
+              <strong>{ticketPriorityMode === "Automatica" ? "Prioridad sugerida" : "Prioridad manual"}</strong>
+            </div>
+          </div>
           <div className="quickTemplateRow" aria-label="Plantillas rapidas de ticket">
             {quickTemplates.map((template) => (
               <button
@@ -951,6 +1352,28 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
               <em>Siguiente accion: {ticketSignal.action}.</em>
             </div>
           ) : null}
+          <div className="draftPreviewPanel" aria-label="Borrador sugerido del ticket">
+            <span>Borrador sugerido</span>
+            <strong>{ticketSignal ? `Asunto: ${ticketSignal.action}` : "Esperando contexto para sugerir un borrador"}</strong>
+            <p>{structuredDraft}</p>
+          </div>
+          <div className="clarificationPanel" aria-label="Preguntas sugeridas para el ticket">
+            <span>Preguntas sugeridas</span>
+            <div className="clarificationGrid">
+              {clarificationPrompts.map((prompt) => (
+                <button
+                  className="clarificationButton"
+                  disabled={!canCreateTicket || actionBusy}
+                  key={prompt.label}
+                  onClick={() => applyClarificationPrompt(prompt)}
+                  type="button"
+                >
+                  <strong>{prompt.label}</strong>
+                  <p>{prompt.text}</p>
+                </button>
+              ))}
+            </div>
+          </div>
           {messages.map((message, index) => (
             <p className={message.author === "user" ? "userBubble" : ""} key={`${message.author}-${index}`}>{message.text}</p>
           ))}
@@ -966,6 +1389,9 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
             <option value="Media">Media</option>
             </select>
           </div>
+          <button disabled={!canCreateTicket || actionBusy} onClick={generateDraftFromSignal} type="button">
+            Generar borrador
+          </button>
           <button className="primary" disabled={isPending || !canCreateTicket || actionBusy} type="submit">{actionLabel ?? (isPending ? "Creando..." : "Crear ticket")}</button>
           <span className={`chatComposerHint ${draftPriority === "Sugerida" ? "auto" : "manual"}`}>
             {draftPriority === "Sugerida" ? "IA" : "Manual"} · Prioridad sugerida: {ticketSignal?.priority ?? "Media"} · Prioridad seleccionada: {ticketDraftPriority} · Modo {ticketPriorityMode}

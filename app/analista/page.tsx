@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/nexera/auth-store";
 import { listAuditEvents } from "@/lib/nexera/audit-store";
 import { getAuthMode } from "@/lib/nexera/runtime-config";
-import { verifySessionCookie, sessionCookieName } from "@/lib/nexera/session-cookie";
+import { verifySessionCookie, sessionCookieName, sessionLockCookieName, verifySessionLockCookie } from "@/lib/nexera/session-cookie";
 import { DEFAULT_TENANT_ID } from "@/lib/nexera/tenant-context";
 import { listKnowledgeArticles } from "@/lib/nexera/service";
 import { listRemoteSupportSessions } from "@/lib/nexera/remote-support-store";
@@ -13,11 +13,17 @@ import { ApiProbe } from "../ApiProbe";
 import { KnowledgeSearchPanel } from "../KnowledgeSearchPanel";
 import { SecurityEventsPanel } from "../SecurityEventsPanel";
 import { ServiceDeskConsole } from "../ServiceDeskConsole";
+import { SessionExpiryTicker } from "../SessionExpiryTicker";
 
 export default async function AnalistaPage() {
   const cookieStore = await cookies();
   const signedSession = await verifySessionCookie(cookieStore.get(sessionCookieName())?.value);
+  const sessionLock = await verifySessionLockCookie(cookieStore.get(sessionLockCookieName())?.value);
   const authMode = getAuthMode();
+
+  if (sessionLock) {
+    redirect("/signin?returnTo=/analista&mode=unlock");
+  }
 
   if (authMode === "production" && !signedSession) {
     redirect("/signin?returnTo=/analista");
@@ -46,11 +52,14 @@ export default async function AnalistaPage() {
         </div>
         <div className="roleLandingActions">
           <span className="badge">Rol {session.role}</span>
+          <SessionExpiryTicker className="warning" expiresAt={session.expiresAt} />
           <a className="buttonLike primary" href="/signin?returnTo=/analista">
             Cambiar sesion
           </a>
         </div>
+        <SessionExpiryTicker mode="banner" expiresAt={session.expiresAt} />
       </section>
+      <SessionExpiryTicker mode="modal" expiresAt={session.expiresAt} />
 
       <div className="rolePageGrid">
         <ServiceDeskConsole initialAuditEvents={auditEvents} initialKnowledgeArticles={knowledge} initialRemoteSessions={remoteSessions} initialSession={session} initialTickets={tickets} />

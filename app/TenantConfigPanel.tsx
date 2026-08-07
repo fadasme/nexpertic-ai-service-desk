@@ -42,7 +42,7 @@ export function TenantConfigPanel({ tenants }: TenantConfigPanelProps) {
             <div className="permissionList">
               <span>GLPI {tenant.features.glpi ? "on" : "off"}</span>
               <span>OIDC {tenant.features.oidc ? "on" : "off"}</span>
-              <span>RustDesk {tenant.features.rustdesk ? "on" : "off"}</span>
+              <span>Soporte remoto {tenant.features.rustdesk ? "on" : "off"}</span>
             </div>
             <div className="permissionList">
               <span>Consentimiento remoto {tenant.policies.requireRemoteConsent ? "requerido" : "opcional"}</span>

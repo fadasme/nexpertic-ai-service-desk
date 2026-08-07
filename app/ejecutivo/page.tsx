@@ -8,7 +8,7 @@ import { getPilotReadiness } from "@/lib/nexera/pilot-readiness";
 import { listRemoteSupportSessions } from "@/lib/nexera/remote-support-store";
 import { listSecurityEvents } from "@/lib/nexera/security-event-store";
 import { getSecretPosture } from "@/lib/nexera/secret-posture";
-import { verifySessionCookie, sessionCookieName } from "@/lib/nexera/session-cookie";
+import { verifySessionCookie, sessionCookieName, sessionLockCookieName, verifySessionLockCookie } from "@/lib/nexera/session-cookie";
 import { DEFAULT_TENANT_ID } from "@/lib/nexera/tenant-context";
 import { listStoredTickets } from "@/lib/nexera/ticket-store";
 import { listUserAccounts } from "@/lib/nexera/user-store";
@@ -17,16 +17,23 @@ import { CommercialModel } from "../CommercialModel";
 import { DeploymentArchitecture } from "../DeploymentArchitecture";
 import { OperationsGuide } from "../OperationsGuide";
 import { PilotCommandCenter } from "../PilotCommandCenter";
+import { PilotHealthPanel } from "../PilotHealthPanel";
 import { PilotLaunch } from "../PilotLaunch";
 import { ProductRoadmap } from "../ProductRoadmap";
 import { ProjectStatusPanel } from "../ProjectStatusPanel";
 import { SecretPosturePanel } from "../SecretPosturePanel";
 import { ServiceDeskConsole } from "../ServiceDeskConsole";
+import { SessionExpiryTicker } from "../SessionExpiryTicker";
 
 export default async function EjecutivoPage() {
   const cookieStore = await cookies();
   const signedSession = await verifySessionCookie(cookieStore.get(sessionCookieName())?.value);
+  const sessionLock = await verifySessionLockCookie(cookieStore.get(sessionLockCookieName())?.value);
   const authMode = getAuthMode();
+
+  if (sessionLock) {
+    redirect("/signin?returnTo=/ejecutivo&mode=unlock");
+  }
 
   if (authMode === "production" && !signedSession) {
     redirect("/signin?returnTo=/ejecutivo");
@@ -53,7 +60,7 @@ export default async function EjecutivoPage() {
     { label: "Frontend Nexpertic", progress: 84, status: "Operativo" },
     { label: "API y D1", progress: 78, status: "Activo" },
     { label: "RBAC server-side", progress: 72, status: "Activo" },
-    { label: "RustDesk", progress: 62, status: "Persistido" },
+    { label: "Soporte remoto", progress: 62, status: "Persistido" },
     { label: "GLPI real", progress: 38, status: "Pendiente" },
   ];
 
@@ -67,13 +74,22 @@ export default async function EjecutivoPage() {
         </div>
         <div className="roleLandingActions">
           <span className="badge">Rol {session.role}</span>
+          <SessionExpiryTicker className="warning" expiresAt={session.expiresAt} />
           <a className="buttonLike primary" href="/signin?returnTo=/ejecutivo">
             Cambiar sesion
           </a>
         </div>
+        <SessionExpiryTicker mode="banner" expiresAt={session.expiresAt} />
       </section>
+      <SessionExpiryTicker mode="modal" expiresAt={session.expiresAt} />
 
       <div className="rolePageGrid">
+        <PilotHealthPanel
+          authMode={authMode}
+          readiness={pilotReadiness}
+          securityAlerts={securitySummary.warning + securitySummary.critical}
+          secretPosture={secretPosture}
+        />
         <OperationsGuide />
         <PilotCommandCenter
           authMode={authMode}

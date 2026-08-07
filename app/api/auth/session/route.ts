@@ -1,14 +1,27 @@
 import { getSession, isUserRole } from "@/lib/nexera/auth-store";
 import { allowsDemoAuthFallback } from "@/lib/nexera/runtime-config";
-import { buildSessionSetCookie, cookieValue, sessionCookieName, signSessionCookie, verifySessionCookie } from "@/lib/nexera/session-cookie";
+import {
+  buildSessionSetCookie,
+  clearSessionLockCookie,
+  cookieValue,
+  getSessionTtlMinutes,
+  sessionCookieName,
+  signSessionCookie,
+  verifySessionCookie,
+} from "@/lib/nexera/session-cookie";
 import { getUserAccount, listUserAccounts } from "@/lib/nexera/user-store";
 import type { SessionUser, UserRole } from "@/lib/nexera/contracts";
+
+function sessionExpiresAt() {
+  return new Date(Date.now() + getSessionTtlMinutes() * 60 * 1000).toISOString();
+}
 
 function userSession(user: Awaited<ReturnType<typeof getUserAccount>>): SessionUser | null {
   if (!user) return null;
 
   return {
     email: user.email,
+    expiresAt: sessionExpiresAt(),
     id: user.id,
     name: user.name,
     permissions: user.permissions,
@@ -78,15 +91,15 @@ export async function POST(request: Request) {
 
   const sessionCookie = await signSessionCookie(session);
 
+  const headers = new Headers();
+  headers.append("set-cookie", buildSessionSetCookie(sessionCookie));
+  headers.append("set-cookie", clearSessionLockCookie());
+
   return Response.json(
     {
       data: session,
       source: "demo-signed-cookie",
     },
-    {
-      headers: {
-        "set-cookie": buildSessionSetCookie(sessionCookie),
-      },
-    },
+    { headers },
   );
 }

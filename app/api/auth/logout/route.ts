@@ -1,8 +1,15 @@
 import { createSecurityEvent } from "@/lib/nexera/security-event-store";
-import { clearSessionCookie, cookieValue, sessionCookieName, verifySessionCookie } from "@/lib/nexera/session-cookie";
+import {
+  clearSessionCookie,
+  clearSessionLockCookie,
+  cookieValue,
+  sessionCookieName,
+  verifySessionCookie,
+} from "@/lib/nexera/session-cookie";
 
 export async function POST(request: Request) {
   const session = await verifySessionCookie(cookieValue(request, sessionCookieName()));
+  const wantsHtml = request.headers.get("accept")?.includes("text/html");
 
   if (session) {
     await createSecurityEvent({
@@ -15,6 +22,15 @@ export async function POST(request: Request) {
     });
   }
 
+  const headers = new Headers();
+  headers.append("set-cookie", clearSessionCookie());
+  headers.append("set-cookie", clearSessionLockCookie());
+
+  if (wantsHtml) {
+    headers.set("location", "/signin");
+    return new Response(null, { headers, status: 303 });
+  }
+
   return Response.json(
     {
       data: {
@@ -22,10 +38,6 @@ export async function POST(request: Request) {
         sessionFound: Boolean(session),
       },
     },
-    {
-      headers: {
-        "set-cookie": clearSessionCookie(),
-      },
-    },
+    { headers },
   );
 }

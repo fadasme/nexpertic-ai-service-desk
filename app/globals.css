@@ -14,6 +14,15 @@
   --nav: #10231f;
   --nav-soft: #1c3832;
   --shadow: 0 18px 45px rgba(27, 43, 36, 0.12);
+  --text-2xs: 0.72rem;
+  --text-xs: 0.78rem;
+  --text-sm: 0.88rem;
+  --text-base: 1rem;
+  --text-lg: 1.08rem;
+  --text-xl: 1.24rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.6rem;
 }
 
 @theme inline {
@@ -27,6 +36,12 @@
   box-sizing: border-box;
 }
 
+html {
+  font-size: 16px;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -36,6 +51,46 @@ body {
     var(--bg);
   color: var(--ink);
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+:where(h1, h2, h3, h4, h5, h6, p, ul, ol) {
+  margin: 0;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: var(--text-4xl);
+  line-height: 1.02;
+}
+
+h2 {
+  font-size: var(--text-2xl);
+  line-height: 1.12;
+}
+
+h3 {
+  font-size: var(--text-xl);
+  line-height: 1.18;
+}
+
+p,
+li,
+small,
+label,
+button,
+input,
+select,
+textarea {
+  font-size: var(--text-base);
 }
 
 button,
@@ -48,6 +103,7 @@ input {
   color: var(--ink);
   padding: 0 14px;
   font: inherit;
+  line-height: 1.2;
 }
 
 button:disabled,
@@ -77,6 +133,64 @@ button.primary {
   color: #ffffff;
 }
 
+:where(
+    .metrics article,
+    .panel,
+    .authLockCard,
+    .signinHero,
+    .signinCard,
+    .roleLanding,
+    .homeValueCard,
+    .homeHeroPanel,
+    .ticketCard,
+    .chatBox,
+    .policyGrid,
+    .executiveBand,
+    .apiProbe,
+    .securityPanel,
+    .securityEvent,
+    .timeline div,
+    .completionPanel,
+    .pilotCommand,
+    .pilotExecutiveSummary,
+    .pilotDecisionLead,
+    .pilotDecisionCard,
+    .pilotRecommendation,
+    .pilotRiskCard,
+    .healthSummary,
+    .healthCard,
+    .demoMode,
+    .authModeBanner,
+    .accessPanel
+  ) {
+  border-radius: 16px;
+}
+
+:where(.panel, .metrics article, .authLockCard, .signinHero, .signinCard, .roleLanding, .homeValueCard, .homeHeroPanel) {
+  box-shadow: var(--shadow);
+}
+
+:where(.panel, .metrics article, .authLockCard, .signinHero, .signinCard, .roleLanding, .homeValueCard, .homeHeroPanel, .ticketCard, .chatBox, .policyGrid, .executiveBand, .apiProbe, .securityPanel, .timeline div, .completionPanel, .pilotCommand, .pilotExecutiveSummary, .pilotDecisionLead, .pilotDecisionCard, .pilotRecommendation, .pilotRiskCard, .healthSummary, .healthCard, .demoMode, .authModeBanner, .accessPanel) {
+  border: 1px solid var(--line);
+  background-color: var(--surface-strong);
+}
+
+:where(.panel, .metrics article, .authLockCard, .signinHero, .signinCard, .roleLanding, .homeValueCard, .homeHeroPanel, .ticketCard, .chatBox, .policyGrid, .executiveBand, .apiProbe, .securityPanel, .timeline div, .completionPanel, .pilotCommand, .pilotExecutiveSummary, .pilotDecisionLead, .pilotDecisionCard, .pilotRecommendation, .pilotRiskCard, .healthSummary, .healthCard, .demoMode, .authModeBanner, .accessPanel) {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+:where(.panel, .metrics article, .authLockCard, .signinHero, .signinCard, .roleLanding, .homeValueCard, .homeHeroPanel, .ticketCard, .chatBox, .policyGrid, .executiveBand, .apiProbe, .securityPanel, .timeline div, .completionPanel, .pilotCommand, .pilotExecutiveSummary, .pilotDecisionLead, .pilotDecisionCard, .pilotRecommendation, .pilotRiskCard, .healthSummary, .healthCard, .demoMode, .authModeBanner, .accessPanel) > :where(h1, h2, h3, p, small, .eyebrow, .ticketTopline, .topbarLead) {
+  max-width: 72ch;
+}
+
+:where(.panel, .metrics article, .authLockCard, .signinHero, .signinCard, .roleLanding, .homeValueCard, .homeHeroPanel, .ticketCard, .chatBox, .policyGrid, .executiveBand, .apiProbe, .securityPanel, .timeline div, .completionPanel, .pilotCommand, .pilotExecutiveSummary, .pilotDecisionLead, .pilotDecisionCard, .pilotRecommendation, .pilotRiskCard, .healthSummary, .healthCard, .demoMode, .authModeBanner, .accessPanel) > :where(h1, h2, h3) + :where(p, .permissionHint, .topbarLead) {
+  margin-top: 8px;
+}
+
 .nexera-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -103,14 +217,14 @@ button.primary {
 
 .sidebarBadge span {
   color: #c6d4cf;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .sidebarBadge strong {
   color: #ffffff;
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 
 .sidebarStatus {
@@ -131,14 +245,14 @@ button.primary {
 
 .sidebarStatus span {
   color: #c6d4cf;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .sidebarStatus strong {
   color: #ffffff;
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 
 .sidebarStatus p {
@@ -186,7 +300,7 @@ button.primary {
 .coreCard p {
   display: block;
   color: #b8c8c1;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .navList {
@@ -259,7 +373,7 @@ button.primary {
 
 .authLockCard h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: var(--text-3xl);
 }
 
 .authLockCard p {
@@ -290,16 +404,16 @@ button.primary {
 
 .signinGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
-  gap: 24px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.8fr);
+  gap: 30px;
+  align-items: start;
   min-height: 100vh;
-  padding: 32px;
+  padding: 36px;
 }
 
 .signinHero,
 .signinCard {
-  padding: 28px;
+  padding: 34px;
   border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: var(--shadow);
@@ -307,7 +421,7 @@ button.primary {
 
 .signinHero {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   background:
     linear-gradient(135deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.96)),
     var(--surface-strong);
@@ -315,13 +429,14 @@ button.primary {
 
 .signinHero h1 {
   margin: 0;
-  font-size: clamp(34px, 5vw, 54px);
-  line-height: 0.98;
+  max-width: 12ch;
+  font-size: clamp(2.3rem, 3.8vw, 3.3rem);
+  line-height: 1.06;
 }
 
 .signinHero p {
   margin: 0;
-  max-width: 56ch;
+  max-width: 52ch;
   color: var(--muted);
   line-height: 1.55;
 }
@@ -329,22 +444,22 @@ button.primary {
 .signinPills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .signinCard {
   display: grid;
-  gap: 18px;
+  gap: 22px;
   background: var(--surface-strong);
 }
 
 .signinCard h2 {
-  margin: 4px 0 0;
-  font-size: 24px;
+  margin: 8px 0 0;
+  font-size: var(--text-2xl);
 }
 
 .signinCard p {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.5;
 }
@@ -357,9 +472,38 @@ button.primary {
 
 .signinDemo {
   display: grid;
-  gap: 10px;
-  padding-top: 6px;
+  gap: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--line);
+}
+
+.adminLoginForm {
+  display: grid;
+  gap: 14px;
+}
+
+.adminLoginForm label {
+  display: grid;
+  gap: 9px;
+}
+
+.adminLoginForm span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.permissionHint.error {
+  border-color: rgba(180, 35, 24, 0.3);
+  background: rgba(180, 35, 24, 0.08);
+  color: #8f1f18;
+}
+
+.permissionHint.success {
+  border-color: rgba(15, 118, 110, 0.3);
+  background: rgba(15, 118, 110, 0.08);
+  color: #0b5f59;
 }
 
 .signinDemo > span {
@@ -416,7 +560,7 @@ button.primary {
 
 .roleLanding h2 {
   margin: 4px 0 8px;
-  font-size: 28px;
+  font-size: var(--text-3xl);
 }
 
 .roleLanding p {
@@ -453,7 +597,7 @@ button.primary {
 .homeValueCard h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 20px;
+  font-size: var(--text-xl);
   line-height: 1.15;
 }
 
@@ -480,7 +624,7 @@ button.primary {
 .homeHeroPanel h2 {
   margin: 6px 0 8px;
   color: var(--ink);
-  font-size: clamp(28px, 4vw, 44px);
+  font-size: clamp(2rem, 4vw, 2.75rem);
   line-height: 1.04;
 }
 
@@ -501,7 +645,7 @@ button.primary {
 
 .topbar h1 {
   margin: 0;
-  font-size: 34px;
+  font-size: var(--text-4xl);
   letter-spacing: 0;
 }
 
@@ -534,7 +678,7 @@ button.primary {
   border-radius: 999px;
   background: var(--surface-strong);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 800;
 }
 
@@ -544,7 +688,84 @@ button.primary {
 
 .topbarStats strong {
   color: var(--ink);
-  font-size: 16px;
+  font-size: var(--text-lg);
+}
+
+.sessionExpiryBanner {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(245, 158, 11, 0.08));
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.sessionExpiryBanner strong {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sessionExpiryBanner span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sessionExpiryBanner.danger {
+  border-color: rgba(185, 28, 28, 0.32);
+  background: linear-gradient(135deg, rgba(185, 28, 28, 0.18), rgba(245, 158, 11, 0.09));
+}
+
+.sessionExpiryModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.52);
+  backdrop-filter: blur(8px);
+}
+
+.sessionExpiryModal {
+  display: grid;
+  gap: 10px;
+  width: min(560px, 100%);
+  padding: 24px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 40px 80px rgba(15, 23, 42, 0.28);
+}
+
+.sessionExpiryModal.danger {
+  border-color: rgba(185, 28, 28, 0.3);
+}
+
+.sessionExpiryModal h3,
+.sessionExpiryModal p {
+  margin: 0;
+}
+
+.sessionExpiryModal h3 {
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.sessionExpiryModal p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.sessionExpiryModalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .primary {
@@ -1099,15 +1320,13 @@ button.primary {
 
 .authModeBanner {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 18px;
-  padding: 17px 18px;
+  display: grid;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 24px;
   overflow: hidden;
   border: 1px solid rgba(180, 83, 9, 0.34);
-  border-radius: 8px;
+  border-radius: 16px;
   background:
     radial-gradient(circle at 8% 0%, rgba(251, 191, 36, 0.28), transparent 34%),
     linear-gradient(135deg, rgba(180, 83, 9, 0.15), rgba(15, 23, 42, 0.03)),
@@ -1123,15 +1342,22 @@ button.primary {
   background: #b45309;
 }
 
+.authModeBanner > * {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
 .authModeBanner h2,
 .authModeBanner p {
   margin: 0;
 }
 
 .authModeBanner p:not(.eyebrow) {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--muted);
   line-height: 1.5;
+  max-width: 58ch;
 }
 
 .authModeBanner span {
@@ -1140,10 +1366,81 @@ button.primary {
   border-radius: 999px;
   background: rgba(251, 191, 36, 0.16);
   color: #92400e;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 900;
   padding: 8px 11px;
   text-transform: uppercase;
+}
+
+.authModeBannerMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  max-width: 100%;
+}
+
+.authModeBannerMeta span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--ink);
+  font-size: var(--text-2xs);
+  font-weight: 900;
+  padding: 7px 10px;
+  text-transform: uppercase;
+}
+
+.authModeChecklist {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  max-width: 100%;
+}
+
+.authModeChecklistItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  min-width: 0;
+}
+
+.authModeChecklistItem span {
+  flex: 0 0 auto;
+  min-width: 96px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--text-2xs);
+  font-weight: 900;
+  padding: 7px 10px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.authModeChecklistItem strong {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  font-weight: 800;
+  min-width: 0;
+}
+
+.authModeChecklistItem.ready span {
+  border-color: rgba(15, 118, 110, 0.2);
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--accent-strong);
+}
+
+.authModeChecklistItem.pending span {
+  border-color: rgba(180, 83, 9, 0.2);
+  background: rgba(251, 191, 36, 0.18);
+  color: #92400e;
 }
 
 .accessPanel {
@@ -1152,9 +1449,9 @@ button.primary {
   justify-content: space-between;
   gap: 18px;
   margin-bottom: 18px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 14px;
   background: var(--surface-strong);
   box-shadow: var(--shadow);
 }
@@ -1165,8 +1462,9 @@ button.primary {
 }
 
 .accessPanel p:not(.eyebrow) {
-  margin-top: 5px;
+  margin-top: 7px;
   color: var(--muted);
+  line-height: 1.55;
 }
 
 .accessSummary {
@@ -1246,7 +1544,7 @@ button.primary {
 .metrics strong {
   display: block;
   margin: 8px 0 4px;
-  font-size: 30px;
+  font-size: var(--text-3xl);
 }
 
 .grid {
@@ -1545,6 +1843,45 @@ button.primary {
   padding: 14px;
 }
 
+.ticketComposerState {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ticketComposerState div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.ticketComposerState span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ticketComposerState strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ticketComposerState .ready {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.ticketComposerState .pending {
+  border-color: rgba(180, 83, 9, 0.18);
+  background: rgba(251, 191, 36, 0.1);
+}
+
 .securityExecutive {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr)) 1.4fr;
@@ -1608,6 +1945,36 @@ button.primary {
   border: 1px solid var(--line);
   border-radius: 7px;
   background: var(--surface);
+}
+
+.copilotHints {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.06), rgba(245, 158, 11, 0.04)), var(--surface-strong);
+}
+
+.copilotHints div {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.copilotHints span {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.copilotHints p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .ticketTimeline {
@@ -1779,6 +2146,65 @@ button.primary {
   margin: 0;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.glpiNotePreview {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.08), rgba(15, 118, 110, 0.04)), var(--surface-strong);
+}
+
+.glpiNotePreview span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.glpiNotePreview strong {
+  font-size: 15px;
+}
+
+.glpiNotePreview p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.ticketActionLane {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ticketActionCard {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.05), rgba(255, 255, 255, 0.95));
+}
+
+.ticketActionCard span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ticketActionCard strong {
+  font-size: 15px;
+}
+
+.ticketActionCard p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .ticketTimeline {
@@ -1984,6 +2410,82 @@ button.primary {
   color: var(--ink);
   font-style: normal;
   font-weight: 700;
+}
+
+.draftPreviewPanel {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.05), rgba(255, 255, 255, 0.98)), var(--surface-strong);
+}
+
+.draftPreviewPanel > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.draftPreviewPanel strong {
+  font-size: 15px;
+}
+
+.draftPreviewPanel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.clarificationPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.05), rgba(15, 118, 110, 0.04)), var(--surface-strong);
+}
+
+.clarificationPanel > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.clarificationGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.clarificationButton {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid rgba(29, 78, 216, 0.16);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+}
+
+.clarificationButton strong {
+  font-size: 0.9rem;
+}
+
+.clarificationButton p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.clarificationButton:hover:not(:disabled) {
+  border-color: rgba(29, 78, 216, 0.28);
+  transform: translateY(-1px);
 }
 
 .chatComposer {
@@ -2821,11 +3323,6 @@ progress::-moz-progress-bar {
 
   .roleLanding,
   .homeHeroPanel,
-  .authModeBanner {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .authModeBanner {
     align-items: flex-start;
     flex-direction: column;

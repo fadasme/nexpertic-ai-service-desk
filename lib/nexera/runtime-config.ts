@@ -19,3 +19,18 @@ export function getAuthMode(): AuthMode {
 export function allowsDemoAuthFallback() {
   return getAuthMode() === "demo";
 }
+
+export function getDefaultSessionTtlMinutes() {
+  return getAuthMode() === "production" ? 8 * 60 : 120;
+}
+
+export function getLocalAdminCredentials() {
+  const email = (process.env.NEXERA_LOCAL_ADMIN_EMAIL ?? "admin@nexera.local").trim();
+  const password = (process.env.NEXERA_LOCAL_ADMIN_PASSWORD ?? "Admin123!").trim();
+
+  return {
+    email,
+    enabled: Boolean(email) && Boolean(password),
+    password,
+  };
+}
