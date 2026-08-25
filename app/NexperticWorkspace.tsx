@@ -1,8 +1,9 @@
 "use client";
 
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState, useTransition } from "react";
 import type { AuditEvent, KnowledgeArticle, RemoteSupportSession, SessionUser, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
 import { ServiceDeskConsole } from "./ServiceDeskConsole";
+import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
 type WorkspaceView =
   | "dashboard"
@@ -75,6 +76,7 @@ export function NexperticWorkspace({
   const [view, setView] = useState<WorkspaceView>(initialView);
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authPending, startAuthTransition] = useTransition();
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const clients = Array.from(new Set(initialTickets.map((ticket) => ticket.requester))).filter(Boolean);
   const filteredTickets = initialTickets.filter((ticket) => [ticket.id, ticket.title, ticket.requester, ticket.category, ticket.status].join(" ").toLowerCase().includes(deferredQuery));
@@ -85,6 +87,20 @@ export function NexperticWorkspace({
     setQuery("");
     setSidebarOpen(false);
   };
+
+  function lockSession() {
+    startAuthTransition(async () => {
+      const response = await fetch("/api/auth/lock", { method: "POST" });
+      if (response.ok) window.location.href = "/signin?mode=unlock&returnTo=/";
+    });
+  }
+
+  function logout() {
+    startAuthTransition(async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/signin";
+    });
+  }
 
   return (
     <main className="nxWorkspace">
@@ -110,7 +126,7 @@ export function NexperticWorkspace({
         <header className="nxTopbar">
           <button className="nxMenuButton" onClick={() => setSidebarOpen((value) => !value)} type="button" aria-label="Abrir navegación">☰</button>
           <div className="nxGlobalSearch"><Icon name="search"/><input aria-label="Buscar en el módulo" onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en Nexpertic" value={query}/></div>
-          <div className="nxTopActions"><button type="button">Instalar agente</button><button className="nxCircle" type="button" aria-label="Notificaciones">●</button><button className="nxCircle" type="button" aria-label="Ayuda">?</button><span className="nxAvatar">{initialSession.name.slice(0, 2).toUpperCase()}</span></div>
+          <div className="nxTopActions"><button type="button">Instalar agente</button><SessionExpiryTicker className="warning" expiresAt={initialSession.expiresAt} mode="badge"/><button disabled={authPending} onClick={lockSession} type="button">Bloquear</button><button disabled={authPending} onClick={logout} type="button">Salir</button><button className="nxCircle" type="button" aria-label="Notificaciones">●</button><button className="nxCircle" type="button" aria-label="Ayuda">?</button><span className="nxAvatar">{initialSession.name.slice(0, 2).toUpperCase()}</span></div>
         </header>
         <div className="nxStatusBar"><span>Nexpertic AI Service Desk · operación conectada</span><button onClick={() => changeView("ai")} type="button">Abrir Centro de IA</button></div>
         <section className="nxContent">
