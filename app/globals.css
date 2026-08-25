@@ -1046,6 +1046,23 @@ button.primary {
   padding: 24px;
 }
 
+.signinHero {
+  background: linear-gradient(135deg, #171b1a 0%, #202a27 62%, #164d49 100%);
+  color: #fff;
+  border-color: #2d3c38;
+}
+.signinHero .signinLead, .signinHero .signinRailNote p { color: #b7c5c0; }
+.signinHero .eyebrow, .signinHero .signinRailNote span { color: #7de1d1; }
+.signinBrand { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 28px; letter-spacing: .08em; }
+.signinBrandMark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(145deg, #1f78ff, #42b8a5); color: #fff; font-size: 20px; font-weight: 900; letter-spacing: 0; }
+.signinBrand strong, .signinBrand small { display: block; }
+.signinBrand strong { font-size: 14px; }
+.signinBrand small { margin-top: 3px; color: #7de1d1; font-size: 9px; font-weight: 800; letter-spacing: .13em; }
+.signinHero .signinStatusRow span { border-color: rgba(125, 225, 209, .22); background: rgba(125, 225, 209, .1); color: #c7fff5; }
+.signinHero .signinRailNote { border-color: rgba(125, 225, 209, .2); background: rgba(255, 255, 255, .06); }
+.signinHero .topbarStats span { border-color: rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .07); color: #dbe8e4; }
+.signinHero .topbarStats strong { color: #fff; }
+
 .signinGrid > * {
   width: min(100%, 1180px);
   margin-inline: auto;
@@ -5552,6 +5569,14 @@ progress::-moz-progress-bar {
   .landingBottom {
     grid-template-columns: 1fr;
   }
+
+  .signinGrid { padding: 12px; gap: 12px; }
+  .signinHero, .signinCard { padding: 20px; border-radius: 14px; }
+  .signinBrand { margin-bottom: 18px; }
+  .signinHero h1 { max-width: 12ch; font-size: 2.35rem; }
+  .signinStatsGrid { gap: 8px; }
+  .signinHero .topbarStats span { min-height: 54px; padding: 9px; font-size: 12px; }
+  .signinHero .signinRailNote { padding: 13px; }
 
   .landingDeck {
     grid-template-columns: 1fr;

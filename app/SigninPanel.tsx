@@ -73,8 +73,9 @@ export function SigninPanel({ authMode, oidcConfig, oidcStatus, returnTo, sessio
     <section className="signinGrid" aria-label="Ingreso a Nexpertic">
       <header className="landingHero signinHero">
         <div className="portalHeaderCopy">
-          <p className="eyebrow">Acceso seguro</p>
-          <h1>Nexpertic AI Service Desk</h1>
+          <div className="signinBrand"><span className="signinBrandMark">N</span><span><strong>NEXPERTIC</strong><small>AI SERVICE DESK</small></span></div>
+          <p className="eyebrow">Workspace operativo</p>
+          <h1>Tu mesa de servicio, lista.</h1>
           <p className="signinLead">
             {sessionLocked
               ? "Tu sesión quedó bloqueada. Vuelve a entrar con tu usuario y clave para recuperar el acceso."
