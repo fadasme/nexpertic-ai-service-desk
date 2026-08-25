@@ -223,6 +223,7 @@ function AdminView({ session }: { session: SessionUser }) {
   ] as const;
   return <>
     <PageTitle title="Administración" text={`Sesión activa: ${session.name} · ${session.role}`} action={<span className="nxAdminBadge">Acceso administrador</span>}/>
+    <label className="nxAdminMobilePicker">Sección administrativa<select value={selected} onChange={(event) => setSelected(event.target.value)}><option>Resumen de administración</option>{groups.flatMap(([, items]) => items).map((item) => <option key={item}>{item}</option>)}</select></label>
     <div className="nxAdminLayout">
       <aside className="nxPanel nxAdminMenu" aria-label="Opciones de administración">
         <button className={selected === "Resumen de administración" ? "active" : ""} onClick={() => setSelected("Resumen de administración")} type="button"><span>Resumen</span><b>›</b></button>

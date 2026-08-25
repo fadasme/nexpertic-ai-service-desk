@@ -183,6 +183,7 @@
 .nxAdminFooter { margin-top: 18px; }
 .nxAdminBadge { display: inline-flex; align-items: center; padding: 7px 11px; border-radius: 999px; background: #e8f6ee; color: #28774a; font-size: 12px; font-weight: 800; }
 .nxAdminLayout { display: grid; grid-template-columns: minmax(210px, 260px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.nxAdminMobilePicker { display: none; }
 .nxAdminMenu { padding: 8px 0; overflow: hidden; }
 .nxAdminMenu h2 { margin: 14px 16px 6px; color: var(--nx-muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .nxAdminMenu button { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 10px 16px; border: 0; border-left: 3px solid transparent; background: #fff; color: #465250; text-align: left; font-size: 13px; }
@@ -252,7 +253,9 @@
   .nxPageTitle > .nxPrimaryAction, .nxPageTitle > button { width: 100%; text-align: center; }
   .nxMetricGrid, .nxReportGrid, .nxIntegrationGrid, .nxAdminGrid, .nxAdminCards { grid-template-columns: 1fr; }
   .nxAdminLayout { grid-template-columns: 1fr; }
-  .nxAdminMenu { max-height: 300px; overflow-y: auto; }
+  .nxAdminMobilePicker { display: grid; gap: 7px; margin-bottom: 14px; color: var(--nx-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .nxAdminMobilePicker select { width: 100%; min-height: 44px; border: 1px solid #cfd8d5; border-radius: 9px; padding: 0 12px; background: #fff; color: var(--nx-ink); font-size: 14px; font-weight: 700; text-transform: none; }
+  .nxAdminMenu { display: none; }
   .nxAdminHero { align-items: flex-start; flex-wrap: wrap; }
   .nxAdminHero .nxPrimaryAction { width: calc(100% - 56px); margin-left: 56px; text-align: center; }
   .nxFormGrid { grid-template-columns: 1fr; }
