@@ -56,6 +56,7 @@
   color: #d2d7d6;
   padding: 12px 10px;
 }
+.nxSidebarScrim { display: none; }
 .nxBrand { display: flex; align-items: center; gap: 10px; border: 0; background: none; color: white; padding: 7px 8px 20px; letter-spacing: .08em; }
 .nxBrandMark { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; background: linear-gradient(145deg, #1f78ff, #42b8a5); font-weight: 800; }
 .nxNav { display: grid; gap: 4px; }
@@ -231,22 +232,29 @@
 }
 
 @media (max-width: 760px) {
-  .nxWorkspace { display: block; }
-  .nxSidebar { position: fixed; left: -250px; width: 230px; transition: left .2s ease; }
+  .nxWorkspace { display: block; overflow-x: hidden; }
+  .nxSidebar { position: fixed; left: -250px; width: min(230px, 82vw); transition: left .2s ease; }
   .nxSidebar.open { left: 0; box-shadow: 12px 0 35px rgba(0,0,0,.25); }
+  .nxSidebar.open + .nxSidebarScrim { display: block; position: fixed; inset: 0; z-index: 20; border: 0; background: rgba(15, 23, 21, .42); }
   .nxSidebar .nxBrand strong, .nxSidebar .nxNav span, .nxSidebar .nxNavBottom span, .nxSidebar .nxNavBottom small { display: inline; }
   .nxSidebar .nxBrand, .nxSidebar .nxNav button, .nxSidebar .nxNavBottom button { justify-content: flex-start; }
   .nxMenuButton { display: block; }
-  .nxTopbar { padding-inline: 12px; }
+  .nxTopbar { position: sticky; top: 0; z-index: 15; height: 54px; gap: 9px; padding-inline: 12px; }
   .nxGlobalSearch { flex: 1; width: auto; }
+  .nxGlobalSearch input { min-width: 0; font-size: 13px; }
   .nxTopActions > button:first-child, .nxTopActions .nxCircle { display: none; }
-  .nxStatusBar { justify-content: space-between; }
-  .nxContent { padding: 14px; }
-  .nxPageTitle { align-items: flex-start; flex-direction: column; }
+  .nxStatusBar { align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.25; }
+  .nxStatusBar span { max-width: 55%; }
+  .nxStatusBar button { padding: 6px 9px; font-size: 11px; }
+  .nxContent { padding: 16px 12px 28px; }
+  .nxPageTitle { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .nxPageTitle h1 { font-size: 28px; }
+  .nxPageTitle > .nxPrimaryAction, .nxPageTitle > button { width: 100%; text-align: center; }
   .nxMetricGrid, .nxReportGrid, .nxIntegrationGrid, .nxAdminGrid, .nxAdminCards { grid-template-columns: 1fr; }
   .nxAdminLayout { grid-template-columns: 1fr; }
+  .nxAdminMenu { max-height: 300px; overflow-y: auto; }
   .nxAdminHero { align-items: flex-start; flex-wrap: wrap; }
-  .nxAdminHero .nxPrimaryAction { margin-left: 56px; }
+  .nxAdminHero .nxPrimaryAction { width: calc(100% - 56px); margin-left: 56px; text-align: center; }
   .nxFormGrid { grid-template-columns: 1fr; }
   .nxFormGrid .wide { grid-column: auto; }
   .nxDashboardGrid { grid-template-columns: 1fr; }
@@ -255,6 +263,9 @@
   .nxOsGrid { grid-template-columns: 1fr 1fr; }
   .nxConsoleHost .ticketWorkspaceBar, .nxConsoleHost .ticketWorkspaceTools { align-items: stretch !important; flex-direction: column !important; }
   .nxConsoleHost .ticketBoard { grid-template-columns: 1fr !important; }
+  .nxHealthBars label { grid-template-columns: 1fr; gap: 5px; }
+  .nxDonutRow { align-items: flex-start; }
+  .nxTableWrap { -webkit-overflow-scrolling: touch; }
 }
 
 @theme inline {

@@ -104,6 +104,7 @@ export function NexperticWorkspace({
           <button className={view === "admin" ? "active" : ""} onClick={() => changeView("admin")} type="button"><Icon name="patch"/><span>Administración</span></button>
         </div>
       </aside>
+      {sidebarOpen && <button className="nxSidebarScrim" onClick={() => setSidebarOpen(false)} type="button" aria-label="Cerrar navegación" />}
 
       <section className="nxStage">
         <header className="nxTopbar">
