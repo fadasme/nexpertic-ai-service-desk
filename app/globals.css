@@ -49,6 +49,67 @@
   .signinHero .signinStatsGrid { display: none; }
 }
 
+/* Minimal sign-in view: keep the entry point focused on authentication. */
+.signinGrid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  min-height: 100vh;
+  padding: 0 !important;
+  background: linear-gradient(135deg, #f8eafe 0%, #fdf7fc 52%, #e9c9f2 100%);
+}
+
+.signinCard {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  display: block !important;
+  width: min(100%, 560px) !important;
+  min-height: 100vh !important;
+  margin: 0 auto !important;
+  padding: clamp(28px, 7vw, 86px) clamp(22px, 7vw, 72px) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, .96) !important;
+}
+
+.signinBody {
+  max-width: none;
+  padding-top: 0;
+}
+
+.signinAuthBrand {
+  margin-bottom: clamp(54px, 10vh, 104px);
+}
+
+.signinAuthBrand img {
+  width: min(270px, 100%);
+}
+
+.signinBody h2 {
+  font-size: clamp(2rem, 5vw, 2.7rem);
+}
+
+.signinAdminBlock {
+  max-width: none;
+  margin-top: 54px;
+}
+
+@media (max-width: 640px) {
+  .signinCard {
+    width: 100% !important;
+    min-height: 100svh !important;
+    padding: 32px 22px 42px !important;
+  }
+
+  .signinAuthBrand {
+    margin-bottom: 64px;
+  }
+
+  .signinAuthBrand img {
+    width: min(240px, 88vw);
+  }
+}
+
 /* Unified Nexpertic workspace */
 .nxWorkspace {
   --nx-blue: #1769e8;
@@ -5679,5 +5740,66 @@ progress::-moz-progress-bar {
 
   .ticketCard {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Minimal sign-in view: keep the entry point focused on authentication. */
+.signinGrid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  min-height: 100vh;
+  padding: 0 !important;
+  background: linear-gradient(135deg, #f8eafe 0%, #fdf7fc 52%, #e9c9f2 100%);
+}
+
+.signinCard {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  display: block !important;
+  width: min(100%, 560px) !important;
+  min-height: 100vh !important;
+  margin: 0 auto !important;
+  padding: clamp(28px, 7vw, 86px) clamp(22px, 7vw, 72px) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: rgba(255, 255, 255, .96) !important;
+}
+
+.signinBody {
+  max-width: none;
+  padding-top: 0;
+}
+
+.signinAuthBrand {
+  margin-bottom: clamp(54px, 10vh, 104px);
+}
+
+.signinAuthBrand img {
+  width: min(270px, 100%);
+}
+
+.signinBody h2 {
+  font-size: clamp(2rem, 5vw, 2.7rem);
+}
+
+.signinAdminBlock {
+  max-width: none;
+  margin-top: 54px;
+}
+
+@media (max-width: 640px) {
+  .signinCard {
+    width: 100% !important;
+    min-height: 100svh !important;
+    padding: 32px 22px 42px !important;
+  }
+
+  .signinAuthBrand {
+    margin-bottom: 64px;
+  }
+
+  .signinAuthBrand img {
+    width: min(240px, 88vw);
   }
 }
