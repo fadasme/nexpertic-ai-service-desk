@@ -1063,6 +1063,31 @@ button.primary {
 .signinHero .topbarStats span { border-color: rgba(255, 255, 255, .18); background: rgba(255, 255, 255, .07); color: #dbe8e4; }
 .signinHero .topbarStats strong { color: #fff; }
 
+/* Sign-in follows the split layout used by the Nexera product entry point. */
+.signinGrid { grid-template-columns: minmax(310px, .38fr) minmax(0, .62fr); gap: 0; padding: 0; background: #fff; }
+.signinGrid > * { width: auto; margin: 0; }
+.signinCard { grid-column: 1; grid-row: 1; min-height: 100vh; align-content: center; padding: clamp(28px, 6vw, 90px); border: 0; border-radius: 0; box-shadow: none; }
+.signinSplit { display: block; }
+.signinBody { max-width: 420px; margin: 0 auto; }
+.signinAdminBlock { max-width: 420px; margin: 38px auto 0; padding-top: 28px; border-top: 1px solid var(--line); }
+.signinAuthBrand { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 42px; }
+.signinAuthBrand img { display: block; width: min(190px, 75%); height: auto; }
+.signinAuthBrand span { color: var(--accent-strong); font-size: 10px; font-weight: 900; letter-spacing: .18em; }
+.signinHero { grid-column: 2; grid-row: 1; min-height: 100vh; display: flex; align-items: center; padding: clamp(36px, 7vw, 120px); border: 0; border-radius: 0; box-shadow: none; position: relative; overflow: hidden; background: linear-gradient(135deg, #f8eafe 0%, #fdf7fc 45%, #e9c9f2 100%); color: #211d2d; }
+.signinHero::after { position: absolute; inset: 0; background-image: linear-gradient(rgba(155, 82, 196, .1) 1px, transparent 1px), linear-gradient(90deg, rgba(155, 82, 196, .1) 1px, transparent 1px); background-size: 160px 160px; content: ""; pointer-events: none; }
+.signinHero > * { position: relative; z-index: 1; width: min(700px, 100%); }
+.signinHero .portalHeaderCopy { display: grid; gap: 18px; }
+.signinHero .signinLead { max-width: 620px; color: #3f3748; font-size: clamp(1rem, 1.5vw, 1.25rem); }
+.signinHero h1 { max-width: 10ch; color: #352345; font-size: clamp(3rem, 6vw, 6.4rem); line-height: .98; letter-spacing: -.065em; }
+.signinHero .eyebrow { color: #8b3bbd; }
+.signinHero .signinStatusRow span { border-color: rgba(139, 59, 189, .18); background: rgba(255, 255, 255, .56); color: #71309c; }
+.signinHero .portalHeaderRail { margin-top: 26px; }
+.signinHero .signinRailNote { max-width: 560px; border-color: rgba(139, 59, 189, .18); background: rgba(255, 255, 255, .5); }
+.signinHero .signinRailNote span { color: #8b3bbd; }
+.signinHero .signinRailNote p { color: #51475a; }
+.signinHero .topbarStats span { border-color: rgba(139, 59, 189, .16); background: rgba(255, 255, 255, .5); color: #5b4963; }
+.signinHero .topbarStats strong { color: #352345; }
+
 .signinGrid > * {
   width: min(100%, 1180px);
   margin-inline: auto;
@@ -5577,6 +5602,14 @@ progress::-moz-progress-bar {
   .signinStatsGrid { gap: 8px; }
   .signinHero .topbarStats span { min-height: 54px; padding: 9px; font-size: 12px; }
   .signinHero .signinRailNote { padding: 13px; }
+
+  .signinGrid { display: flex; flex-direction: column; gap: 0; padding: 0; }
+  .signinCard { order: 1; min-height: auto; padding: 28px 20px 36px; }
+  .signinHero { order: 2; min-height: 520px; padding: 44px 22px; }
+  .signinAuthBrand { margin-bottom: 30px; }
+  .signinAuthBrand img { width: 170px; }
+  .signinHero h1 { max-width: 11ch; font-size: 3.25rem; }
+  .signinHero .signinStatsGrid { display: none; }
 
   .landingDeck {
     grid-template-columns: 1fr;
