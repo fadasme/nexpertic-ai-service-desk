@@ -25,6 +25,30 @@
   --text-4xl: 2.6rem;
 }
 
+/* Final sign-in layout overrides: keep the auth column single-column after legacy landing rules. */
+.signinGrid { grid-template-columns: minmax(300px, .34fr) minmax(0, .66fr); gap: 0; padding: 0; background: #fff; }
+.signinGrid > * { width: auto; margin: 0; }
+.signinCard { display: block !important; grid-column: 1; grid-row: 1; min-height: 100vh; padding: clamp(28px, 6vw, 90px); border: 0; border-radius: 0; box-shadow: none; }
+.signinSplit { display: block !important; grid-template-columns: none !important; }
+.signinBody { max-width: 420px; margin: 0 auto; }
+.signinAdminBlock { max-width: 420px; margin: 38px auto 0; padding-top: 28px; border-top: 1px solid var(--line); }
+.signinHero { grid-column: 2; grid-row: 1; min-height: 100vh; display: flex !important; align-items: center; padding: clamp(36px, 7vw, 120px); border: 0; border-radius: 0; box-shadow: none; position: relative; overflow: hidden; background: linear-gradient(135deg, #f8eafe 0%, #fdf7fc 45%, #e9c9f2 100%); color: #211d2d; }
+.signinHero::after { position: absolute; inset: 0; background-image: linear-gradient(rgba(155, 82, 196, .1) 1px, transparent 1px), linear-gradient(90deg, rgba(155, 82, 196, .1) 1px, transparent 1px); background-size: 160px 160px; content: ""; pointer-events: none; }
+.signinHero > * { position: relative; z-index: 1; width: min(700px, 100%); }
+.signinHero h1 { max-width: 10ch; color: #352345; font-size: clamp(3rem, 6vw, 6.4rem); line-height: .98; letter-spacing: -.065em; }
+.signinHero .eyebrow { color: #8b3bbd; }
+.signinHero .signinLead { max-width: 620px; color: #3f3748; font-size: clamp(1rem, 1.5vw, 1.25rem); }
+.signinHero .signinRailNote { max-width: 560px; border-color: rgba(139, 59, 189, .18); background: rgba(255, 255, 255, .5); }
+.signinHero .signinRailNote span { color: #8b3bbd; }
+.signinHero .signinRailNote p { color: #51475a; }
+
+@media (max-width: 640px) {
+  .signinGrid { display: flex !important; flex-direction: column; gap: 0; padding: 0; }
+  .signinCard { order: 1; min-height: auto; padding: 28px 20px 36px; }
+  .signinHero { order: 2; min-height: 520px; padding: 44px 22px; }
+  .signinHero .signinStatsGrid { display: none; }
+}
+
 /* Unified Nexpertic workspace */
 .nxWorkspace {
   --nx-blue: #1769e8;
