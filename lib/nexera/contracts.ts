@@ -158,6 +158,10 @@ export type TenantConfig = {
   createdAt: string;
 };
 
+export type UpdateTenantConfigInput = Partial<Pick<TenantConfig, "name" | "region">> & {
+  policies?: Partial<TenantConfig["policies"]>;
+};
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;

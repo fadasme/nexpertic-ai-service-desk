@@ -71,66 +71,96 @@ export function SigninPanel({ authMode, oidcConfig, oidcStatus, returnTo, sessio
 
   return (
     <section className="signinGrid" aria-label="Ingreso a Nexpertic">
-      <div className="signinHero">
-        <p className="eyebrow">Acceso seguro</p>
-        <h1>Nexpertic AI Service Desk</h1>
-        <p>{sessionLocked ? "Tu sesión quedó bloqueada. Vuelve a entrar con tu usuario y clave para recuperar el acceso." : "Ingresa con tu cuenta para continuar al panel operativo y mantener el acceso protegido."}</p>
-        <div className="signinPills">
-          <span className="badge">{sessionLocked ? "Bloqueado" : authMode === "production" ? "Produccion" : "Demo controlado"}</span>
-          <span className="badge warning">RBAC</span>
-          <span className="badge">Auditado</span>
-          <span className="badge">Sesion {sessionTtlMinutes} min</span>
-        </div>
-        <div className="authModeBanner">
-          <p className="eyebrow">Preparación de acceso</p>
-          <h2>{sessionLocked ? "La sesión está bloqueada" : authMode === "production" ? "Acceso corporativo activo" : "Acceso de prueba habilitado"}</h2>
-          <p>
+      <header className="landingHero signinHero">
+        <div className="portalHeaderCopy">
+          <p className="eyebrow">Acceso seguro</p>
+          <h1>Nexpertic AI Service Desk</h1>
+          <p className="signinLead">
             {sessionLocked
-              ? "Solo una nueva validación con usuario y clave puede abrir de nuevo la plataforma."
-              : authMode === "production"
-              ? "La instancia está lista para iniciar sesión con tu cuenta de trabajo."
-              : "Todavía puedes entrar con cuentas de prueba mientras terminamos la conexión segura."}
+              ? "Tu sesión quedó bloqueada. Vuelve a entrar con tu usuario y clave para recuperar el acceso."
+              : "Ingresa con tu cuenta para continuar al panel operativo y mantener el acceso protegido."}
           </p>
-          <div className="authModeBannerMeta">
-            <span>{accessLabel}</span>
+          <div className="signinStatusRow">
+            <span>{sessionLocked ? "Bloqueado" : authMode === "production" ? "Producción" : "Demo controlado"}</span>
             <span>{oidcConfig.mode === "configured" ? "Conexión lista" : "Conexión pendiente"}</span>
-            <span>{oidcStatus.jwksAvailable ? `${oidcStatus.jwksKeyCount} claves de seguridad` : "Verificación pendiente"}</span>
+            <span>{oidcStatus.jwksAvailable ? `${oidcStatus.jwksKeyCount} claves` : "Verificación pendiente"}</span>
+            <span>{sessionTtlMinutes} min</span>
           </div>
         </div>
-      </div>
+        <div className="portalHeaderRail">
+          <div className="topbarStats signinStatsGrid">
+            <span><strong>{sessionTtlMinutes}</strong> min</span>
+            <span><strong>{demoUsers.length}</strong> perfiles</span>
+            <span><strong>{oidcStatus.jwksAvailable ? oidcStatus.jwksKeyCount : 0}</strong> llaves</span>
+            <span><strong>{sessionLocked ? "Bloqueada" : "Activa"}</strong> sesión</span>
+          </div>
+          <div className="signinRailNote">
+            <span>{accessLabel}</span>
+            <p>
+              {sessionLocked
+                ? "La sesión quedó bloqueada. Usa tu cuenta para recuperar el acceso."
+                : authMode === "production"
+                  ? "Producción activa. El acceso principal es corporativo."
+                  : "Demo controlado para validación interna y pruebas guiadas."}
+            </p>
+          </div>
+        </div>
+      </header>
 
-      <div className="signinCard">
-        <div>
+      <div className="signinCard signinSplit">
+        <section className="signinBody">
           <p className="eyebrow">Iniciar sesión</p>
-          <h2>Elige tu forma de entrar</h2>
-          <p>{sessionLocked ? "Vuelve a entrar con tu usuario y clave para desbloquear la plataforma." : "Usa tu cuenta de trabajo para el entorno real. El modo de prueba queda para validación interna y pruebas guiadas."}</p>
-          <p className="permissionHint">La sesión expira automáticamente después de {sessionTtlMinutes} minutos para reducir riesgo si el equipo queda desatendido.</p>
-        </div>
+          <h2>Acceso principal</h2>
+          <p className="signinLead">
+            {sessionLocked
+              ? "Vuelve a entrar con tu usuario y clave para desbloquear la plataforma."
+              : "Usa tu cuenta de trabajo para el entorno real. El modo de prueba queda para validación interna."}
+          </p>
 
-        <div className="signinActions">
-          <button className="primary" disabled={isPending} onClick={signInWithOidc} type="button">
-            {accessButtonLabel}
-          </button>
-        </div>
-
-        {!sessionLocked && authMode === "demo" ? (
-          <div className="signinDemo">
-            <span>Modo de prueba</span>
-            <div className="roleSwitcher">
-              {demoUsers.map((user) => (
-                <button disabled={isPending} key={user.id} onClick={() => signInWithDemoUser(user.id)} type="button">
-                  {user.name}
-                  <small>{user.role}</small>
-                </button>
-              ))}
-            </div>
-            <p className="permissionHint">Cada perfil abre su propia experiencia para separar el trabajo inicial.</p>
+          <div className="signinActions">
+            <button className="primary" disabled={isPending} onClick={signInWithOidc} type="button">
+              {accessButtonLabel}
+            </button>
           </div>
-        ) : (
-          <p className="permissionHint">La instancia está en modo producción. Usa tu cuenta de trabajo para entrar.</p>
-        )}
 
-        <div className="signinDemo">
+          <div className="landingMiniGrid">
+            <div className="landingMiniCard">
+              <span>Acceso</span>
+              <strong>{authMode === "production" ? "Corporativo" : "Controlado"}</strong>
+            </div>
+            <div className="landingMiniCard">
+              <span>Sesión</span>
+              <strong>{sessionLocked ? "Bloqueada" : "Activa"}</strong>
+            </div>
+          </div>
+
+          <div className="signinQuickGrid">
+            <div className="signinQuickCard">
+              <span>Ruta sugerida</span>
+              <strong>{sessionLocked ? "Desbloqueo" : authMode === "production" ? "Corporativo" : "Demo"}</strong>
+            </div>
+            <div className="signinQuickCard">
+              <span>Validez</span>
+              <strong>{sessionTtlMinutes} minutos</strong>
+            </div>
+          </div>
+
+          {!sessionLocked && authMode === "demo" ? (
+            <div className="signinDemo">
+              <span>Usuarios demo</span>
+              <div className="roleSwitcher">
+                {demoUsers.map((user) => (
+                  <button disabled={isPending} key={user.id} onClick={() => signInWithDemoUser(user.id)} type="button">
+                    {user.name}
+                    <small>{user.role}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <aside className="signinDemo signinAdminBlock">
           <span>Acceso interno</span>
           <p className="permissionHint">Para administración interna puedes usar un usuario local con clave propia.</p>
           <div className="adminLoginForm">
@@ -148,7 +178,7 @@ export function SigninPanel({ authMode, oidcConfig, oidcStatus, returnTo, sessio
             {adminError ? <p className="permissionHint error">{adminError}</p> : null}
             {adminSuccess ? <p className="permissionHint success">{adminSuccess}</p> : null}
           </div>
-        </div>
+        </aside>
       </div>
     </section>
   );

@@ -4,7 +4,7 @@ import { tickets as seedTickets } from "./demo-data";
 import { persistenceSchemaStatusFromRows, type PersistenceSchemaStatus } from "./persistence-status";
 import { shouldSeedDemoData } from "./runtime-config";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
-import type { AuditEvent, CreateAuditEventInput, CreateRemoteSupportSessionInput, CreateTicketInput, RemoteSupportSession, TenantConfig, Ticket, TicketPriority, UpdateRemoteSupportSessionInput, UpdateTicketInput, UpdateUserRoleInput, UserAccount, UserRole } from "./contracts";
+import type { AuditEvent, CreateAuditEventInput, CreateRemoteSupportSessionInput, CreateTicketInput, RemoteSupportSession, TenantConfig, Ticket, TicketPriority, UpdateRemoteSupportSessionInput, UpdateTicketInput, UpdateTenantConfigInput, UpdateUserRoleInput, UserAccount, UserRole } from "./contracts";
 
 export type TicketFilters = {
   priority?: TicketPriority | "Todas";
@@ -38,6 +38,7 @@ export type UserRepository = {
 
 export type TenantRepository = {
   list(tenantId?: string): Promise<TenantConfig[]>;
+  update(id: string, input: UpdateTenantConfigInput): Promise<TenantConfig | null>;
 };
 
 export type DemoCleanupResult = {
@@ -392,6 +393,14 @@ export const memoryTenantRepository: TenantRepository = {
   async list(tenantId) {
     const tenants = tenantId ? getStore().tenants.filter((tenant) => tenant.id === tenantId) : getStore().tenants;
     return tenants.map((tenant) => ({ ...tenant, features: { ...tenant.features }, policies: { ...tenant.policies } }));
+  },
+  async update(id, input) {
+    const store = getStore();
+    const index = store.tenants.findIndex((tenant) => tenant.id === id);
+    if (index === -1) return null;
+    const current = store.tenants[index];
+    store.tenants[index] = { ...current, ...input, policies: { ...current.policies, ...input.policies } };
+    return store.tenants[index];
   },
 };
 
@@ -823,6 +832,22 @@ const d1TenantRepository: TenantRepository = {
       return rows.results.map(mapTenantConfigRow);
     } catch {
       return memoryTenantRepository.list(tenantId);
+    }
+  },
+  async update(id, input) {
+    const db = env.DB;
+    if (!db) return memoryTenantRepository.update(id, input);
+    try {
+      await seedD1IfEmpty(db);
+      const existing = await db.prepare("select * from tenants where id = ?").bind(id).first<TenantConfigRow>();
+      if (!existing) return null;
+      const current = mapTenantConfigRow(existing);
+      const next = { ...current, ...input, policies: { ...current.policies, ...input.policies } };
+      await db.prepare("update tenants set name = ?, region = ?, demo_data_allowed = ?, require_remote_consent = ?, require_sso = ? where id = ?")
+        .bind(next.name, next.region, next.policies.demoDataAllowed ? 1 : 0, next.policies.requireRemoteConsent ? 1 : 0, next.policies.requireSso ? 1 : 0, id).run();
+      return next;
+    } catch {
+      return memoryTenantRepository.update(id, input);
     }
   },
 };

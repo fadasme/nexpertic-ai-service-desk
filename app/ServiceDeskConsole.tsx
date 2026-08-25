@@ -69,6 +69,22 @@ function priorityClass(priority: TicketPriority) {
   return "badge";
 }
 
+function ticketAvatar(ticket: Ticket) {
+  const token = [ticket.requester, ticket.owner, ticket.category].join(" ").toLowerCase();
+  if (token.includes("usuario demo")) return "UD";
+  if (token.includes("usuario operativo")) return "UO";
+  if (token.includes("usuario interno")) return "UI";
+  if (token.includes("mesa l1")) return "L1";
+  return ticket.id.slice(-2);
+}
+
+function sourceLabel(source: Ticket["source"]) {
+  if (source === "chat") return "Chat";
+  if (source === "portal") return "Portal";
+  if (source === "email") return "Email";
+  return "API";
+}
+
 function classifyTicketDescription(description: string): TicketClassification | null {
   const trimmed = description.trim();
   if (!trimmed) return null;
@@ -355,6 +371,39 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       return matchesPriority && matchesQuery;
     });
   }, [priority, query, tickets]);
+
+  const ticketColumns = useMemo(() => {
+    const columns = [
+      {
+        key: "Nuevo",
+        match: (ticket: Ticket) => ticket.status === "Nuevo",
+        status: "Nuevo",
+      },
+      {
+        key: "En proceso",
+        match: (ticket: Ticket) => ticket.status === "Asignado" || ticket.status === "En diagnostico",
+        status: "En proceso",
+      },
+      {
+        key: "Pendiente",
+        match: (ticket: Ticket) => ticket.status === "Pendiente usuario" || ticket.status === "Escalado",
+        status: "Pendiente",
+      },
+      {
+        key: "Resuelto",
+        match: (ticket: Ticket) => ticket.status === "Resuelto",
+        status: "Resuelto",
+      },
+    ] as const;
+
+    return columns
+      .map((column) => ({
+        count: filteredTickets.filter((ticket) => column.match(ticket)).length,
+        status: column.status,
+        tickets: filteredTickets.filter((ticket) => column.match(ticket)),
+      }))
+      .filter((column) => column.tickets.length > 0);
+  }, [filteredTickets]);
 
   const ticketSummary = useMemo(() => {
     const total = tickets.length;
@@ -1072,209 +1121,337 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
           </a>
         </div>
 
-        <div className="ticketList">
-          {filteredTickets.map((ticket) => (
-            <button className={`ticketCard ${ticket.id === selectedTicket?.id ? "selected" : ""}`} key={ticket.id} onClick={() => setSelectedId(ticket.id)} type="button">
-              <div className="ticketTopline">
-                <strong>{ticket.id}</strong>
-                <span className={priorityClass(ticket.priority)}>{ticket.priority}</span>
-              </div>
-              <h3>{ticket.title}</h3>
-              <p>{ticket.aiSummary}</p>
-              <div className="ticketMeta">
-                {!isSelfServiceUser ? <span>{ticket.requester}</span> : null}
-                <span>{ticket.status}</span>
-                <span>{ticket.owner}</span>
-                <span>{ticket.category}</span>
-                <span>IA {ticket.confidence}%</span>
-              </div>
-            </button>
-          ))}
-          {!filteredTickets.length ? <p className="emptyState">{ticketPanelCopy.empty}</p> : null}
-        </div>
-      </article>
-
-      <article className="panel">
-        <div className="panelHeader">
-          <div>
-            <p className="eyebrow">{detailCopy.eyebrow}</p>
-            <h2>{detailCopy.heading}</h2>
-          </div>
-          {actionLabel ? <span className="badge warning">{actionLabel}</span> : null}
-        </div>
-        {selectedTicket ? (
-          <>
-            <div className="ticketExecutive">
-              <div>
-                <span>Estado</span>
-                <strong>{selectedTicket.status}</strong>
-              </div>
-              <div>
-                <span>Responsable</span>
-                <strong>{selectedTicket.owner}</strong>
-              </div>
-              <div>
-                <span>Auditoria</span>
-                <strong>{selectedAuditCount}</strong>
-              </div>
-              <p>
-                {selectedTicket.id} mantiene trazabilidad activa con {selectedRemoteState.toLowerCase()} y {selectedTicket.confidence}% de confianza IA.
-              </p>
+        <div className="commandCenterGrid">
+          <aside className="workspaceRail" aria-label="Navegacion interna de la consola">
+            <div className="workspaceRailCard">
+              <p className="eyebrow">Consola</p>
+              <h3>Ruta operativa</h3>
+              <p>Accede a la cola, la auditoria y el portal de usuarios sin salir del panel de trabajo.</p>
             </div>
-            {selectedTicketOverview ? (
-              <div className="ticketActionLane">
-                <div className="ticketActionCard">
-                  <span>Lectura rapida</span>
-                  <strong>{selectedTicketOverview.statusLine}</strong>
-                  <p>{selectedTicketOverview.summaryLine}</p>
-                </div>
-                <div className="ticketActionCard">
-                  <span>Copiloto operativo</span>
-                  <strong>{ticketNextStep ? ticketNextStep.label : "Sin accion sugerida"}</strong>
-                  <p>{ticketNextStep ? ticketNextStep.detail : "Este ticket no tiene un siguiente paso predefinido."}</p>
-                </div>
+
+            <nav className="workspaceRailNav">
+              <a className="active" href="#command-center">
+                <strong>Cola</strong>
+                <span>Tickets, filtros y panel principal</span>
+              </a>
+              <a href="#usuarios">
+                <strong>Usuarios</strong>
+                <span>Chat, borradores y creación guiada</span>
+              </a>
+              <a href="#audit">
+                <strong>Auditoria</strong>
+                <span>Trazabilidad de cambios y responsables</span>
+              </a>
+            </nav>
+
+            <div className="workspaceRailCard workspaceRailCardMuted">
+              <p className="eyebrow">Accesos rapidos</p>
+              <div className="workspaceRailLinks">
+                <a href="#usuarios">Crear ticket</a>
+                <a href="#audit">Ver auditoria</a>
+                <a href="#command-center">Volver a la cola</a>
               </div>
-            ) : null}
-            {selectedGlpiState ? (
-              <div className={`ticketWorkflowCallout ${selectedGlpiState.tone}`}>
-                <span>GLPI</span>
-                <strong>{selectedGlpiState.badge}</strong>
-                <p>{selectedGlpiState.detail}</p>
+            </div>
+          </aside>
+
+          <section className="consoleListPane">
+            <div className="ticketWorkspaceBar">
+              <div className="ticketWorkspaceTitle">
+                <p className="eyebrow">Requests</p>
+                <h3>All Requests</h3>
+                <p className="ticketWorkspaceLead">Cola principal para clasificar, revisar y mover tickets sin ruido visual.</p>
               </div>
-            ) : null}
-            {selectedGlpiGuide ? (
-              <div className={`ticketWorkflowCallout ${selectedGlpiGuide.tone}`}>
-                <span>Estado GLPI</span>
-                <strong>{selectedGlpiGuide.title}</strong>
-                <p>{selectedGlpiGuide.detail}</p>
+              <div className="ticketWorkspaceTools">
+                <label className="ticketWorkspaceSearch">
+                  <span>Buscar</span>
+                  <input aria-label="Buscar ticket" onChange={(event) => setQuery(event.target.value)} placeholder="Ticket, usuario o categoría" value={query} />
+                </label>
+                <label className="ticketWorkspaceSelect">
+                  <span>Group By</span>
+                  <select aria-label="Filtrar prioridad" onChange={(event) => setPriority(event.target.value as TicketPriority | "Todas")} value={priority}>
+                    <option>Todas</option>
+                    <option>Critica</option>
+                    <option>Alta</option>
+                    <option>Media</option>
+                  </select>
+                </label>
               </div>
-            ) : null}
-            {selectedGlpiNote ? (
-              <div className="glpiNotePreview">
-                <span>Vista previa GLPI</span>
-                <strong>Nota operativa lista para copiar o enviar</strong>
-                <p>{selectedGlpiNote}</p>
-              </div>
-            ) : null}
-            <div className="copilotPanel">
-              <strong>{selectedTicket.id}: {selectedTicket.title}</strong>
-              <p>{selectedTicket.aiSummary}</p>
-              {copilotHints.length ? (
-                <div className="copilotHints" aria-label="Sugerencias del copiloto">
-                  {copilotHints.map((hint) => (
-                    <div key={hint}>
-                      <span />
-                      <p>{hint}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {notice ? <p className={`consoleNotice ${notice.kind}`} role="status">{notice.text}</p> : null}
-              {actionBusy ? <p className="permissionHint">Operando: {actionLabel?.toLowerCase()}.</p> : null}
-              <div className="ticketJourney" aria-label="Progreso del ticket">
-                <span className="badge">{ticketProgressStep}</span>
-                <span className={selectedTicket.externalRef === "Pendiente GLPI" ? "badge warning" : "badge"}>{selectedTicket.externalRef}</span>
-                <span className="badge">IA {selectedTicket.confidence}%</span>
-                <span className="badge">{selectedTicket.status}</span>
-              </div>
-              <div className="ticketTimeline" aria-label="Cronologia del ticket">
-                {ticketTimeline.map((step, index) => (
-                  <div className={`ticketTimelineStep ${step.tone}`} key={step.label}>
-                    <span className="ticketTimelineDot">{String(index + 1).padStart(2, "0")}</span>
-                    <div>
-                      <strong>{step.label}</strong>
-                      <p>{step.detail}</p>
-                    </div>
+            </div>
+
+            <div className="ticketBoard">
+              {ticketColumns.map((column) => (
+              <div className={`ticketColumn ticketColumn-${column.status.toLowerCase().replace(/\s+/g, "-")}`} key={column.status}>
+                  <div className="ticketColumnHeader">
+                    <span>{column.status}</span>
+                    <strong>{column.count}</strong>
                   </div>
-                ))}
-              </div>
-              <div className="ticketMeta">
-                <span className={priorityClass(selectedTicket.priority)}>{selectedTicket.priority}</span>
-                <span className="badge">Confianza {selectedTicket.confidence}%</span>
-                <span className="badge">{selectedTicket.category}</span>
-                <span className="badge">{selectedTicket.owner}</span>
-              </div>
-              {ticketNextStep ? (
-                <div className={`ticketWorkflowCallout ${ticketNextStep.tone}`}>
-                  <span>Siguiente paso sugerido</span>
-                  <strong>{ticketNextStep.label}</strong>
-                  <p>{ticketNextStep.detail}</p>
+                  <div className="ticketColumnList">
+                    {column.tickets.map((ticket) => (
+                      <button className={`ticketCard ${ticket.id === selectedTicket?.id ? "selected" : ""}`} key={ticket.id} onClick={() => setSelectedId(ticket.id)} type="button">
+                        <div className="ticketCardMain">
+                          <div className="ticketTopline">
+                            <div className="ticketIdentity">
+                              <span className="ticketAvatar">{ticketAvatar(ticket)}</span>
+                              <div>
+                                <span className="ticketId">{ticket.id}</span>
+                                <span className="ticketSource">{sourceLabel(ticket.source)}</span>
+                              </div>
+                            </div>
+                            <div className="ticketToplinePills">
+                              <span className="ticketStatusPill">{ticket.status}</span>
+                              <span className={priorityClass(ticket.priority)}>{ticket.priority}</span>
+                            </div>
+                          </div>
+                          <h3>{ticket.title}</h3>
+                          <p>{ticket.aiSummary}</p>
+                        </div>
+                        <div className="ticketCardSide">
+                          <div className="ticketMeta">
+                            {!isSelfServiceUser ? <span>{ticket.requester}</span> : null}
+                            <span>{ticket.owner}</span>
+                            <span>{ticket.category}</span>
+                            <span>IA {ticket.confidence}%</span>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    {!column.tickets.length ? <p className="emptyState">{ticketPanelCopy.empty}</p> : null}
+                  </div>
                 </div>
-              ) : null}
-              {canUpdateTicket || canSyncGlpi || canUseRemoteSupport ? (
-                <div className="actionStack">
-                  <button
-                    className="primary"
-                    disabled={!canUpdateTicket || actionBusy || !ticketNextStep}
-                    onClick={() => void applySuggestedStep()}
-                    type="button"
-                  >
-                    Aplicar siguiente paso
-                  </button>
-                  {ticketWorkflowSteps.map((step) => (
-                    <button
-                      className={step.tone === "ready" ? "primary" : ""}
-                      disabled={!canUpdateTicket || actionBusy}
-                      key={step.label}
-                      onClick={() => void updateSelected(step.status, step.owner)}
-                      type="button"
-                    >
-                      {step.label}
-                    </button>
-                  ))}
-                  <button disabled={actionBusy} onClick={() => void runCopilotSummary()} type="button">
-                    Resumir caso
-                  </button>
-                  <button disabled={actionBusy} onClick={() => void copyCopilotNote()} type="button">
-                    Copiar nota GLPI
-                  </button>
-                  <button disabled={!canSyncGlpi || !glpiConfigured || actionBusy} onClick={() => void syncSelectedWithGlpi()} type="button">Sincronizar GLPI</button>
-                  <button disabled={!canPullGlpi || !glpiConfigured || actionBusy} onClick={() => void pullSelectedFromGlpi()} type="button">Actualizar desde GLPI</button>
-                  <button disabled={!canUseRemoteSupport || actionBusy} onClick={startRemoteSession} type="button">Sesión de soporte remoto</button>
-                </div>
-              ) : (
-                <p className="permissionHint">Tu solicitud ya esta registrada. El equipo de soporte actualizara el estado y dejara trazabilidad visible cuando corresponda.</p>
-              )}
-              {canSyncGlpi && !glpiConfigured ? (
-                <p className="permissionHint">
-                  GLPI todavía no está listo. Completa la configuración del backend antes de usar la sincronización.
-                </p>
-              ) : null}
+              ))}
+              {!ticketColumns.length ? <p className="emptyState">{ticketPanelCopy.empty}</p> : null}
             </div>
-            {remoteSession?.ticketId === selectedTicket.id ? (
-              <div className="remoteSessionCard">
-                <div className="ticketTopline">
-                  <strong>{remoteSession.code}</strong>
-                  <span className="badge warning">{remoteSession.status}</span>
-                </div>
-                <p>Sesion vinculada a {selectedTicket.id}. Requiere consentimiento explicito del usuario antes de iniciar control remoto.</p>
-                <div className="ticketMeta">
-                  <span>{remoteSession.provider}</span>
-                  <span>Expira en {remoteSession.expiresInMinutes} min</span>
-                  <span>{remoteSession.consentGrantedAt ? "Autorización registrada" : "Autorización pendiente"}</span>
-                  <span>{remoteSession.launchUrl}</span>
-                </div>
-                {remoteSession.consentToken.includes(".") ? (
-                  <a className="consentLink" href={`/consentimiento-rustdesk?token=${remoteSession.consentToken}`} target="_blank" rel="noreferrer">
-                    Abrir portal de autorización
-                  </a>
-                ) : (
-                  <span className="permissionHint">Portal de autorización disponible cuando la API firma el token.</span>
-                )}
-                <div className="actionStack">
-                  <button className="primary" disabled={remoteSession.status !== "Esperando consentimiento" || actionBusy} onClick={() => void sendRemoteInvite()} type="button">Enviar invitación</button>
-                  <button disabled={Boolean(remoteSession.consentGrantedAt) || actionBusy} onClick={() => void grantRemoteConsent()} type="button">Registrar autorización</button>
-                  <button disabled={!remoteSession.consentGrantedAt || remoteSession.status === "Conectado" || actionBusy} onClick={() => void connectRemoteSession()} type="button">Conectar</button>
-                </div>
+          </section>
+
+          <section className="consoleDetailPane">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">{detailCopy.eyebrow}</p>
+                <h2>{detailCopy.heading}</h2>
               </div>
-            ) : null}
-          </>
-        ) : (
-          <p className="emptyState">Selecciona o crea un ticket para activar el copiloto L2.</p>
-        )}
+              {actionLabel ? <span className="badge warning">{actionLabel}</span> : null}
+            </div>
+            {selectedTicket ? (
+              <>
+                <div className="ticketDetailGrid">
+                  <div className="ticketDetailMain">
+                    <div className="ticketDetailHero">
+                      <div className="ticketIdentity">
+                        <span className="ticketAvatar">{ticketAvatar(selectedTicket)}</span>
+                        <div>
+                          <span className="ticketId">{selectedTicket.id}</span>
+                          <span className="ticketSource">{sourceLabel(selectedTicket.source)}</span>
+                        </div>
+                      </div>
+                      <div className="ticketDetailHeroCopy">
+                        <strong>{selectedTicket.title}</strong>
+                        <p>{selectedTicket.aiSummary}</p>
+                      </div>
+                      <div className="ticketDetailHeroStats">
+                        <span>
+                          <strong>{selectedTicket.status}</strong>
+                          <small>Estado</small>
+                        </span>
+                        <span>
+                          <strong>{selectedTicket.priority}</strong>
+                          <small>Prioridad</small>
+                        </span>
+                        <span>
+                          <strong>{selectedTicket.confidence}%</strong>
+                          <small>IA</small>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ticketExecutive">
+                      <div>
+                        <span>Estado</span>
+                        <strong>{selectedTicket.status}</strong>
+                      </div>
+                      <div>
+                        <span>Responsable</span>
+                        <strong>{selectedTicket.owner}</strong>
+                      </div>
+                      <div>
+                        <span>Auditoria</span>
+                        <strong>{selectedAuditCount}</strong>
+                      </div>
+                      <p>{selectedTicket.id} mantiene trazabilidad activa con {selectedRemoteState.toLowerCase()} y {selectedTicket.confidence}% de confianza IA.</p>
+                    </div>
+                    <div className="copilotPanel">
+                      <strong>
+                        {selectedTicket.id}: {selectedTicket.title}
+                      </strong>
+                      <p>{selectedTicket.aiSummary}</p>
+                      {copilotHints.length ? (
+                        <div className="copilotHints" aria-label="Sugerencias del copiloto">
+                          {copilotHints.map((hint) => (
+                            <div key={hint}>
+                              <span />
+                              <p>{hint}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {notice ? <p className={`consoleNotice ${notice.kind}`} role="status">{notice.text}</p> : null}
+                      {actionBusy ? <p className="permissionHint">Operando: {actionLabel?.toLowerCase()}.</p> : null}
+                      <div className="ticketJourney" aria-label="Progreso del ticket">
+                        <span className="badge">{ticketProgressStep}</span>
+                        <span className={selectedTicket.externalRef === "Pendiente GLPI" ? "badge warning" : "badge"}>{selectedTicket.externalRef}</span>
+                        <span className="badge">IA {selectedTicket.confidence}%</span>
+                        <span className="badge">{selectedTicket.status}</span>
+                      </div>
+                      <div className="ticketTimeline" aria-label="Cronologia del ticket">
+                        {ticketTimeline.map((step, index) => (
+                          <div className={`ticketTimelineStep ${step.tone}`} key={step.label}>
+                            <span className="ticketTimelineDot">{String(index + 1).padStart(2, "0")}</span>
+                            <div>
+                              <strong>{step.label}</strong>
+                              <p>{step.detail}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="ticketMeta">
+                        <span className={priorityClass(selectedTicket.priority)}>{selectedTicket.priority}</span>
+                        <span className="badge">Confianza {selectedTicket.confidence}%</span>
+                        <span className="badge">{selectedTicket.category}</span>
+                        <span className="badge">{selectedTicket.owner}</span>
+                      </div>
+                    </div>
+                    {selectedTicketOverview ? (
+                      <div className="ticketActionLane">
+                        <div className="ticketActionCard">
+                          <span>Lectura rapida</span>
+                          <strong>{selectedTicketOverview.statusLine}</strong>
+                          <p>{selectedTicketOverview.summaryLine}</p>
+                        </div>
+                        <div className="ticketActionCard">
+                          <span>Copiloto operativo</span>
+                          <strong>{ticketNextStep ? ticketNextStep.label : "Sin accion sugerida"}</strong>
+                          <p>{ticketNextStep ? ticketNextStep.detail : "Este ticket no tiene un siguiente paso predefinido."}</p>
+                        </div>
+                      </div>
+                    ) : null}
+                    {selectedGlpiState ? (
+                      <div className={`ticketWorkflowCallout ${selectedGlpiState.tone}`}>
+                        <span>GLPI</span>
+                        <strong>{selectedGlpiState.badge}</strong>
+                        <p>{selectedGlpiState.detail}</p>
+                      </div>
+                    ) : null}
+                    {selectedGlpiGuide ? (
+                      <div className={`ticketWorkflowCallout ${selectedGlpiGuide.tone}`}>
+                        <span>Estado GLPI</span>
+                        <strong>{selectedGlpiGuide.title}</strong>
+                        <p>{selectedGlpiGuide.detail}</p>
+                      </div>
+                    ) : null}
+                    {selectedGlpiNote ? (
+                      <div className="glpiNotePreview">
+                        <span>Vista previa GLPI</span>
+                        <strong>Nota operativa lista para copiar o enviar</strong>
+                        <p>{selectedGlpiNote}</p>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <aside className="ticketDetailRail">
+                    {ticketNextStep ? (
+                      <div className={`ticketWorkflowCallout ${ticketNextStep.tone}`}>
+                        <span>Siguiente paso sugerido</span>
+                        <strong>{ticketNextStep.label}</strong>
+                        <p>{ticketNextStep.detail}</p>
+                      </div>
+                    ) : null}
+                    {canUpdateTicket || canSyncGlpi || canUseRemoteSupport ? (
+                      <div className="actionStack">
+                        <button
+                          className="primary"
+                          disabled={!canUpdateTicket || actionBusy || !ticketNextStep}
+                          onClick={() => void applySuggestedStep()}
+                          type="button"
+                        >
+                          Aplicar siguiente paso
+                        </button>
+                        {ticketWorkflowSteps.map((step) => (
+                          <button
+                            className={step.tone === "ready" ? "primary" : ""}
+                            disabled={!canUpdateTicket || actionBusy}
+                            key={step.label}
+                            onClick={() => void updateSelected(step.status, step.owner)}
+                            type="button"
+                          >
+                            {step.label}
+                          </button>
+                        ))}
+                        <button disabled={actionBusy} onClick={() => void runCopilotSummary()} type="button">
+                          Resumir caso
+                        </button>
+                        <button disabled={actionBusy} onClick={() => void copyCopilotNote()} type="button">
+                          Copiar nota GLPI
+                        </button>
+                        <button disabled={!canSyncGlpi || !glpiConfigured || actionBusy} onClick={() => void syncSelectedWithGlpi()} type="button">
+                          Sincronizar GLPI
+                        </button>
+                        <button disabled={!canPullGlpi || !glpiConfigured || actionBusy} onClick={() => void pullSelectedFromGlpi()} type="button">
+                          Actualizar desde GLPI
+                        </button>
+                        <button disabled={!canUseRemoteSupport || actionBusy} onClick={startRemoteSession} type="button">
+                          Sesión de soporte remoto
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="permissionHint">Tu solicitud ya esta registrada. El equipo de soporte actualizara el estado y dejara trazabilidad visible cuando corresponda.</p>
+                    )}
+                    {canSyncGlpi && !glpiConfigured ? (
+                      <p className="permissionHint">
+                        GLPI todavía no está listo. Completa la configuración del backend antes de usar la sincronización.
+                      </p>
+                    ) : null}
+                    {remoteSession?.ticketId === selectedTicket.id ? (
+                      <div className="remoteSessionCard">
+                        <div className="ticketTopline">
+                          <strong>{remoteSession.code}</strong>
+                          <span className="badge warning">{remoteSession.status}</span>
+                        </div>
+                        <p>Sesion vinculada a {selectedTicket.id}. Requiere consentimiento explicito del usuario antes de iniciar control remoto.</p>
+                        <div className="ticketMeta">
+                          <span>{remoteSession.provider}</span>
+                          <span>Expira en {remoteSession.expiresInMinutes} min</span>
+                          <span>{remoteSession.consentGrantedAt ? "Autorización registrada" : "Autorización pendiente"}</span>
+                          <span>{remoteSession.launchUrl}</span>
+                        </div>
+                        {remoteSession.consentToken.includes(".") ? (
+                          <a className="consentLink" href={`/consentimiento-rustdesk?token=${remoteSession.consentToken}`} target="_blank" rel="noreferrer">
+                            Abrir portal de autorización
+                          </a>
+                        ) : (
+                          <span className="permissionHint">Portal de autorización disponible cuando la API firma el token.</span>
+                        )}
+                        <div className="actionStack">
+                          <button className="primary" disabled={remoteSession.status !== "Esperando consentimiento" || actionBusy} onClick={() => void sendRemoteInvite()} type="button">
+                            Enviar invitación
+                          </button>
+                          <button disabled={Boolean(remoteSession.consentGrantedAt) || actionBusy} onClick={() => void grantRemoteConsent()} type="button">
+                            Registrar autorización
+                          </button>
+                          <button disabled={!remoteSession.consentGrantedAt || remoteSession.status === "Conectado" || actionBusy} onClick={() => void connectRemoteSession()} type="button">
+                            Conectar
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </aside>
+                </div>
+                </>
+            ) : (
+              <p className="emptyState">Selecciona o crea un ticket para activar el copiloto L2.</p>
+            )}
+          </section>
+        </div>
       </article>
 
-      <article className="panel">
+      <article className="panel" id="audit">
         <div className="panelHeader">
           <div>
             <p className="eyebrow">Auditoria</p>
@@ -1309,84 +1486,88 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
             <h2>Chat de soporte</h2>
           </div>
         </div>
-        <div className="chatBox">
-          <div className="chatJourney">
-            <span>Ticket</span>
-            <strong>{selectedTicket?.id ?? "Sin seleccionar"}</strong>
-            <small>{actionBusy ? `${ticketProgressStep} · ${actionLabel}` : "Flujo listo para nueva solicitud"}</small>
-          </div>
-          <div className="ticketComposerState" aria-label="Estado de preparación del ticket">
-            <div className={ticketDraftReady ? "ready" : "pending"}>
-              <span>{ticketDraftReady ? "Listo" : "Pendiente"}</span>
-              <strong>{ticketDraftReady ? "Borrador preparado" : "Escribe o genera un borrador"}</strong>
+        <div className="userPortalGrid">
+          <section className="chatStream">
+            <div className="chatJourney">
+              <span>Ticket</span>
+              <strong>{selectedTicket?.id ?? "Sin seleccionar"}</strong>
+              <small>{actionBusy ? `${ticketProgressStep} · ${actionLabel}` : "Flujo listo para nueva solicitud"}</small>
             </div>
-            <div className={ticketSignal ? "ready" : "pending"}>
-              <span>{ticketSignal ? "IA" : "Contexto"}</span>
-              <strong>{ticketSignal ? `Categoria ${ticketSignal.category}` : "Agrega contexto para clasificar"}</strong>
-            </div>
-            <div className={ticketDraftPriority !== "Sugerida" ? "ready" : "pending"}>
-              <span>{ticketDraftPriority}</span>
-              <strong>{ticketPriorityMode === "Automatica" ? "Prioridad sugerida" : "Prioridad manual"}</strong>
-            </div>
-          </div>
-          <div className="quickTemplateRow" aria-label="Plantillas rapidas de ticket">
-            {quickTemplates.map((template) => (
-              <button
-                className="quickTemplateButton"
-                disabled={!canCreateTicket || actionBusy}
-                key={template.label}
-                onClick={() => applyTemplate(template)}
-                type="button"
-              >
-                <strong>{template.label}</strong>
-                <span>{template.text}</span>
-              </button>
+            {messages.map((message, index) => (
+              <p className={message.author === "user" ? "userBubble" : ""} key={`${message.author}-${index}`}>{message.text}</p>
             ))}
-          </div>
-          {ticketSignal ? (
-            <div className={`ticketSignal ${ticketSignalTone}`}>
-              <span>Preclasificacion IA</span>
-              <strong>{ticketSignal.category}</strong>
-              <small>Prioridad sugerida: {ticketDraftPriority} · {ticketSignal.confidence}% confianza</small>
-              <p>{ticketSignal.summary}</p>
-              <em>Siguiente accion: {ticketSignal.action}.</em>
+          </section>
+          <aside className="chatRail">
+            <div className="ticketComposerState" aria-label="Estado de preparación del ticket">
+              <div className={ticketDraftReady ? "ready" : "pending"}>
+                <span>{ticketDraftReady ? "Listo" : "Pendiente"}</span>
+                <strong>{ticketDraftReady ? "Borrador preparado" : "Escribe o genera un borrador"}</strong>
+              </div>
+              <div className={ticketSignal ? "ready" : "pending"}>
+                <span>{ticketSignal ? "IA" : "Contexto"}</span>
+                <strong>{ticketSignal ? `Categoria ${ticketSignal.category}` : "Agrega contexto para clasificar"}</strong>
+              </div>
+              <div className={ticketDraftPriority !== "Sugerida" ? "ready" : "pending"}>
+                <span>{ticketDraftPriority}</span>
+                <strong>{ticketPriorityMode === "Automatica" ? "Prioridad sugerida" : "Prioridad manual"}</strong>
+              </div>
             </div>
-          ) : null}
-          <div className="draftPreviewPanel" aria-label="Borrador sugerido del ticket">
-            <span>Borrador sugerido</span>
-            <strong>{ticketSignal ? `Asunto: ${ticketSignal.action}` : "Esperando contexto para sugerir un borrador"}</strong>
-            <p>{structuredDraft}</p>
-          </div>
-          <div className="clarificationPanel" aria-label="Preguntas sugeridas para el ticket">
-            <span>Preguntas sugeridas</span>
-            <div className="clarificationGrid">
-              {clarificationPrompts.map((prompt) => (
+            <div className="quickTemplateRow" aria-label="Plantillas rapidas de ticket">
+              {quickTemplates.map((template) => (
                 <button
-                  className="clarificationButton"
+                  className="quickTemplateButton"
                   disabled={!canCreateTicket || actionBusy}
-                  key={prompt.label}
-                  onClick={() => applyClarificationPrompt(prompt)}
+                  key={template.label}
+                  onClick={() => applyTemplate(template)}
                   type="button"
                 >
-                  <strong>{prompt.label}</strong>
-                  <p>{prompt.text}</p>
+                  <strong>{template.label}</strong>
+                  <span>{template.text}</span>
                 </button>
               ))}
             </div>
-          </div>
-          {messages.map((message, index) => (
-            <p className={message.author === "user" ? "userBubble" : ""} key={`${message.author}-${index}`}>{message.text}</p>
-          ))}
+            {ticketSignal ? (
+              <div className={`ticketSignal ${ticketSignalTone}`}>
+                <span>Preclasificacion IA</span>
+                <strong>{ticketSignal.category}</strong>
+                <small>Prioridad sugerida: {ticketDraftPriority} · {ticketSignal.confidence}% confianza</small>
+                <p>{ticketSignal.summary}</p>
+                <em>Siguiente accion: {ticketSignal.action}.</em>
+              </div>
+            ) : null}
+            <div className="draftPreviewPanel" aria-label="Borrador sugerido del ticket">
+              <span>Borrador sugerido</span>
+              <strong>{ticketSignal ? `Asunto: ${ticketSignal.action}` : "Esperando contexto para sugerir un borrador"}</strong>
+              <p>{structuredDraft}</p>
+            </div>
+            <div className="clarificationPanel" aria-label="Preguntas sugeridas para el ticket">
+              <span>Preguntas sugeridas</span>
+              <div className="clarificationGrid">
+                {clarificationPrompts.map((prompt) => (
+                  <button
+                    className="clarificationButton"
+                    disabled={!canCreateTicket || actionBusy}
+                    key={prompt.label}
+                    onClick={() => applyClarificationPrompt(prompt)}
+                    type="button"
+                  >
+                    <strong>{prompt.label}</strong>
+                    <p>{prompt.text}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
         </div>
         <form className="chatComposer" onSubmit={submitTicket}>
           <input disabled={!canCreateTicket || actionBusy} onChange={(event) => setDraft(event.target.value)} placeholder={canCreateTicket ? "Describe el incidente..." : "El rol actual no puede crear tickets"} value={draft} />
           <div className="priorityField">
             <span>{draftPriority === "Sugerida" ? "Sugerida por IA" : "Editada manualmente"}</span>
             <select className={draftPriority === "Sugerida" ? "prioritySelect auto" : "prioritySelect manual"} aria-label="Prioridad sugerida" disabled={!canCreateTicket || actionBusy} onChange={(event) => setDraftPriority(event.target.value as TicketPriority | "Sugerida")} value={draftPriority}>
-            <option value="Sugerida">Sugerida</option>
-            <option value="Critica">Critica</option>
-            <option value="Alta">Alta</option>
-            <option value="Media">Media</option>
+              <option value="Sugerida">Sugerida</option>
+              <option value="Critica">Critica</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Media</option>
             </select>
           </div>
           <button disabled={!canCreateTicket || actionBusy} onClick={generateDraftFromSignal} type="button">
