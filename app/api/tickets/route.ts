@@ -4,6 +4,7 @@ import { createAuditEvent } from "@/lib/nexera/audit-store";
 import { suggestKnowledgeArticle } from "@/lib/nexera/knowledge-search";
 import { listKnowledgeArticles } from "@/lib/nexera/service";
 import { listAutomationRules } from "@/lib/nexera/automation-store";
+import { getTicketSettings } from "@/lib/nexera/ticket-settings-store";
 import { tenantIdFromRequest } from "@/lib/nexera/tenant-context";
 import type { CreateTicketInput, TicketPriority } from "@/lib/nexera/contracts";
 
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
       source: body.source,
     });
     const description = String(body.description ?? "").toLowerCase();
+    const ticketSettings = await getTicketSettings(tenantId);
+    const configuredTicket = await updateStoredTicket(ticket.id, { priority: ticketSettings.defaultPriority, owner: ticketSettings.autoAssign ? ticketSettings.defaultOwner : ticket.owner }, tenantId);
+    if (configuredTicket) ticket = configuredTicket;
     const matchedRules = (await listAutomationRules(tenantId)).filter((rule) => rule.enabled && description.includes(rule.matchText.toLowerCase()));
     for (const rule of matchedRules) {
       const next = await updateStoredTicket(ticket.id, rule.action === "Prioridad Alta" ? { priority: "Alta" } : { owner: "Mesa L1" }, tenantId);
