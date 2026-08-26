@@ -225,6 +225,10 @@ export type TicketSettings = {
   allowRequesterReply: boolean;
 };
 
+export type TicketTemplate = { id: string; tenantId: string; name: string; subject: string; body: string; createdAt: string };
+export type CreateTicketTemplateInput = Pick<TicketTemplate, "name" | "subject" | "body">;
+export type UpdateTicketTemplateInput = Partial<CreateTicketTemplateInput>;
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;
