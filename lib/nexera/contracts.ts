@@ -231,6 +231,10 @@ export type UpdateTicketTemplateInput = Partial<CreateTicketTemplateInput>;
 
 export type CalendarSettings = { provider: "Microsoft 365" | "Google Calendar" | "iCal"; calendarId: string; timezone: string; syncEnabled: boolean };
 
+export type TechnicianGroup = { id: string; tenantId: string; name: string; specialty: string; status: "Activo" | "Pausado"; createdAt: string };
+export type CreateTechnicianGroupInput = Pick<TechnicianGroup, "name" | "specialty">;
+export type UpdateTechnicianGroupInput = Partial<CreateTechnicianGroupInput> & Pick<TechnicianGroup, "status">;
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;
