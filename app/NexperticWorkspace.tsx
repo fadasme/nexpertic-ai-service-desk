@@ -173,7 +173,7 @@ function Dashboard({ tickets, events, remote, onNavigate }: { tickets: Ticket[];
 }
 
 function TicketsView({ tickets, audit, knowledge, remote, session }: { tickets: Ticket[]; audit: AuditEvent[]; knowledge: KnowledgeArticle[]; remote: RemoteSupportSession[]; session: SessionUser }) {
-  return <><PageTitle title="Tickets" text={`${tickets.length} solicitudes encontradas`} action={<button className="nxPrimaryAction" onClick={() => document.getElementById("usuarios")?.scrollIntoView({ behavior: "smooth" })} type="button">+ Nuevo ticket</button>}/><div className="nxModuleTabs"><button className="active" type="button">Entradas</button><button type="button">Programa</button><span>Vista operativa completa</span></div><div className="nxConsoleHost"><ServiceDeskConsole initialAuditEvents={audit} initialKnowledgeArticles={knowledge} initialRemoteSessions={remote} initialSession={session} initialTickets={tickets}/></div></>;
+  return <><PageTitle title="Tickets" text={`${tickets.length} solicitudes encontradas`} action={<button className="nxPrimaryAction" onClick={() => document.getElementById("command-center")?.scrollIntoView({ behavior: "smooth", block: "start" })} type="button">+ Nuevo ticket</button>}/><div className="nxModuleTabs"><button className="active" type="button">Entradas</button><button type="button">Programa</button><span>Vista operativa completa</span></div><div className="nxConsoleHost"><ServiceDeskConsole initialAuditEvents={audit} initialKnowledgeArticles={knowledge} initialRemoteSessions={remote} initialSession={session} initialTickets={tickets}/></div></>;
 }
 
 function ClientsView({ clients, tickets }: { clients: string[]; tickets: Ticket[] }) {
