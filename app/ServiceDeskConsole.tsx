@@ -372,6 +372,13 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     });
   }, [priority, query, tickets]);
 
+  useEffect(() => {
+    if (filteredTickets.length > 0 && !filteredTickets.some((ticket) => ticket.id === selectedId)) {
+      const timer = window.setTimeout(() => setSelectedId(filteredTickets[0].id), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [filteredTickets, selectedId]);
+
   const ticketColumns = useMemo(() => {
     const columns = [
       {
@@ -1167,7 +1174,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
                   <input aria-label="Buscar ticket" onChange={(event) => setQuery(event.target.value)} placeholder="Ticket, usuario o categoría" value={query} />
                 </label>
                 <label className="ticketWorkspaceSelect">
-                  <span>Group By</span>
+                  <span>Prioridad</span>
                   <select aria-label="Filtrar prioridad" onChange={(event) => setPriority(event.target.value as TicketPriority | "Todas")} value={priority}>
                     <option>Todas</option>
                     <option>Critica</option>
