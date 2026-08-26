@@ -382,7 +382,18 @@ function NetworksView({ tickets }: { tickets: Ticket[] }) {
 
 function ReportsView({ tickets, events }: { tickets: Ticket[]; events: AuditEvent[] }) {
   const categories = Array.from(new Set(tickets.map((ticket) => ticket.category)));
-  return <><PageTitle title="Informes operativos" text="Rendimiento, carga, técnicos y satisfacción."/><div className="nxReportGrid">{["General", "Monitoreo", "Técnicos", "Cumplimiento", "Satisfacción"].map((group, index) => <article className="nxPanel" key={group}><h2>{group}</h2><div className="nxReportValue">{index === 0 ? tickets.length : index === 1 ? events.length : index === 2 ? new Set(tickets.map((ticket) => ticket.owner)).size : index === 3 ? `${Math.round((tickets.filter((ticket) => ticket.sla === "Normal").length / Math.max(1, tickets.length)) * 100)}%` : "92%"}</div><p>{index === 0 ? "Tickets procesados" : index === 1 ? "Eventos auditados" : index === 2 ? "Equipos responsables" : index === 3 ? "SLA saludable" : "Índice estimado"}</p></article>)}</div><div className="nxPanel nxChartPanel"><h2>Tickets por categoría</h2><div className="nxBarChart">{categories.map((category) => { const value = tickets.filter((ticket) => ticket.category === category).length; return <div key={category}><span>{category}</span><i style={{ width: `${Math.max(8, (value / Math.max(1, tickets.length)) * 100)}%` }}/><strong>{value}</strong></div>; })}</div></div></>;
+  function exportCsv() {
+    const header = ["Ticket", "Título", "Solicitante", "Prioridad", "Estado", "Responsable", "Categoría", "SLA", "Creado"];
+    const rows = tickets.map((ticket) => [ticket.id, ticket.title, ticket.requester, ticket.priority, ticket.status, ticket.owner, ticket.category, ticket.sla, ticket.createdAt]);
+    const csv = [header, ...rows].map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `nexpertic-informe-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  return <><PageTitle title="Informes operativos" text="Rendimiento, carga, técnicos y satisfacción." action={<button className="nxPrimaryAction" onClick={exportCsv} type="button">Descargar CSV</button>}/><div className="nxReportGrid">{["General", "Monitoreo", "Técnicos", "Cumplimiento", "Satisfacción"].map((group, index) => <article className="nxPanel" key={group}><h2>{group}</h2><div className="nxReportValue">{index === 0 ? tickets.length : index === 1 ? events.length : index === 2 ? new Set(tickets.map((ticket) => ticket.owner)).size : index === 3 ? `${Math.round((tickets.filter((ticket) => ticket.sla === "Normal").length / Math.max(1, tickets.length)) * 100)}%` : "92%"}</div><p>{index === 0 ? "Tickets procesados" : index === 1 ? "Eventos auditados" : index === 2 ? "Equipos responsables" : index === 3 ? "SLA saludable" : "Índice estimado"}</p></article>)}</div><div className="nxPanel nxChartPanel"><h2>Tickets por categoría</h2><div className="nxBarChart">{categories.map((category) => { const value = tickets.filter((ticket) => ticket.category === category).length; return <div key={category}><span>{category}</span><i style={{ width: `${Math.max(8, (value / Math.max(1, tickets.length)) * 100)}%` }}/><strong>{value}</strong></div>; })}</div></div></>;
 }
 
 function KnowledgeView({ articles }: { articles: KnowledgeArticle[] }) {
