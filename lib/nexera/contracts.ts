@@ -139,6 +139,20 @@ export type UpdateUserRoleInput = {
   role: UserRole;
 };
 
+export type Client = {
+  id: string;
+  tenantId: string;
+  name: string;
+  email: string;
+  status: "Activo" | "Pendiente";
+  createdAt: string;
+};
+
+export type CreateClientInput = {
+  name: string;
+  email: string;
+};
+
 export type TenantConfig = {
   id: string;
   name: string;
