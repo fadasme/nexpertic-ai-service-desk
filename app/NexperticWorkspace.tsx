@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState, useTransition } from "react";
-import type { AuditEvent, KnowledgeArticle, RemoteSupportSession, SessionUser, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
+import type { Agent, AuditEvent, KnowledgeArticle, RemoteSupportSession, SessionUser, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
 import { ServiceDeskConsole } from "./ServiceDeskConsole";
 import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
@@ -181,7 +181,20 @@ function ClientsView({ clients, tickets }: { clients: string[]; tickets: Ticket[
 }
 
 function DevicesView({ remote }: { remote: RemoteSupportSession[] }) {
-  return <><PageTitle title="Dispositivos" text="Inventario técnico y acceso remoto desde una sola vista." action={<button className="nxPrimaryAction" type="button">+ Nuevo dispositivo</button>}/><div className="nxToolbar"><button type="button">Clientes</button><button type="button">Favoritos</button><button type="button">Filtros</button></div><div className="nxPanel nxDataPanel"><div className="nxTableWrap"><table><thead><tr><th>Dispositivo</th><th>Disponibilidad</th><th>Cliente</th><th>Alertas</th><th>Acceso remoto</th></tr></thead><tbody>{remote.slice(0, 8).map((item) => <tr key={item.id}><td><b>{item.code}</b><small>{item.provider}</small></td><td><span className={item.status === "Conectado" ? "nxOnline" : "nxPending"}>{item.status}</span></td><td>{item.ticketId}</td><td>{item.consentGrantedAt ? 0 : 1}</td><td><a href={item.launchUrl}>Conectar</a></td></tr>)}</tbody></table></div>{remote.length === 0 && <EmptyState icon="monitor" title="Todavía no hay dispositivos" text="Instala un agente o prepara una sesión remota para comenzar."/>}</div></>;
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    fetch("/api/agents")
+      .then(async (response) => {
+        const payload = (await response.json()) as { data?: Agent[]; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "No se pudieron cargar los agentes.");
+        setAgents(payload.data ?? []);
+      })
+      .catch((error: Error) => setMessage(error.message));
+  }, []);
+
+  return <><PageTitle title="Dispositivos" text="Inventario técnico y acceso remoto desde una sola vista." action={<button className="nxPrimaryAction" disabled type="button">+ Nuevo dispositivo</button>}/><div className="nxToolbar"><button type="button">Clientes</button><button type="button">Favoritos</button><button type="button">Filtros</button></div><div className="nxPanel nxDataPanel"><h2>Sesiones remotas</h2><div className="nxTableWrap"><table><thead><tr><th>Dispositivo</th><th>Disponibilidad</th><th>Cliente</th><th>Alertas</th><th>Acceso remoto</th></tr></thead><tbody>{remote.slice(0, 8).map((item) => <tr key={item.id}><td><b>{item.code}</b><small>{item.provider}</small></td><td><span className={item.status === "Conectado" ? "nxOnline" : "nxPending"}>{item.status}</span></td><td>{item.ticketId}</td><td>{item.consentGrantedAt ? 0 : 1}</td><td><a href={item.launchUrl}>Conectar</a></td></tr>)}</tbody></table></div>{remote.length === 0 && <EmptyState icon="monitor" title="Todavía no hay dispositivos" text="Instala un agente o prepara una sesión remota para comenzar."/>}</div><div className="nxPanel nxDataPanel"><h2>Agentes Nexpertic</h2>{message ? <p className="nxAdminMessage">{message}</p> : <div className="nxTableWrap"><table><thead><tr><th>Agente</th><th>Objetivo</th><th>Herramientas</th><th>Score</th><th>Revisión humana</th></tr></thead><tbody>{agents.map((agent) => <tr key={agent.id}><td><b>{agent.name}</b></td><td>{agent.goal}</td><td>{agent.tools.length}</td><td>{agent.score}</td><td>{agent.humanApprovalRequired ? "Requerida" : "No"}</td></tr>)}</tbody></table></div>}</div></>;
 }
 
 function AlertsView({ events }: { events: AuditEvent[] }) {
