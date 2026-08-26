@@ -255,6 +255,8 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
   const [usersMessage, setUsersMessage] = useState("");
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantMessage, setTenantMessage] = useState("");
+  const [summaryUsers, setSummaryUsers] = useState<UserAccount[]>([]);
+  const [summaryAuditCount, setSummaryAuditCount] = useState<number | null>(null);
   const descriptions: Record<string, string> = {
     "Resumen de administración": "Control central de configuración, seguridad, datos y operación comercial.",
     "Configuración de la cuenta": "Define el nombre del tenant, zona horaria, idioma y preferencias generales.",
@@ -309,6 +311,23 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
     return () => { cancelled = true; };
   }, [selected]);
 
+  useEffect(() => {
+    if (selected !== "Resumen de administración") return;
+    let cancelled = false;
+    Promise.all([fetch("/api/users"), fetch("/api/audit")])
+      .then(async ([usersResponse, auditResponse]) => {
+        const usersPayload = (await usersResponse.json()) as { data?: UserAccount[] };
+        const auditPayload = (await auditResponse.json()) as { data?: AuditEvent[] };
+        if (!usersResponse.ok || !auditResponse.ok) throw new Error("No se pudo cargar el resumen.");
+        if (!cancelled) {
+          setSummaryUsers(usersPayload.data ?? []);
+          setSummaryAuditCount(auditPayload.data?.length ?? 0);
+        }
+      })
+      .catch(() => { if (!cancelled) setSummaryAuditCount(null); });
+    return () => { cancelled = true; };
+  }, [selected]);
+
   async function changeRole(user: UserAccount, role: UserRole) {
     setUsersMessage("");
     const response = await fetch(`/api/users/${user.id}/role`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
@@ -333,7 +352,7 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
   }
   return <section className="nxAdminDetail">
     <div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / {selected === "Resumen de administración" ? "Inicio" : selected}</p><h2>{title}</h2><p>{description}</p></div><span className="nxAdminBadge">Vista administrativa</span></div>
-    {selected === "Resumen de administración" ? <div className="nxAdminCards"><article className="nxPanel"><span>Usuarios activos</span><strong>12</strong><small>2 administradores · 8 técnicos · 2 usuarios</small></article><article className="nxPanel"><span>Reglas activas</span><strong>8</strong><small>Automatizaciones ejecutándose</small></article><article className="nxPanel"><span>Integraciones</span><strong>3/6</strong><small>Conectadas y operativas</small></article><article className="nxPanel"><span>Última actividad</span><strong>Ahora</strong><small>{session.name} abrió el centro de administración</small></article></div> : <div className="nxPanel nxAdminContent">
+    {selected === "Resumen de administración" ? <div className="nxAdminCards"><article className="nxPanel"><span>Usuarios activos</span><strong>{summaryUsers.length || "-"}</strong><small>Datos actuales del tenant</small></article><article className="nxPanel"><span>Eventos auditados</span><strong>{summaryAuditCount ?? "-"}</strong><small>Registros de actividad disponibles</small></article><article className="nxPanel"><span>Configuración</span><strong>{tenant ? "Lista" : "-"}</strong><small>Estado de configuración del tenant</small></article><article className="nxPanel"><span>Última actividad</span><strong>Ahora</strong><small>{session.name} abrió el centro de administración</small></article></div> : <div className="nxPanel nxAdminContent">
       {selected === "Configuración de la cuenta" ? <form className="nxAdminForm" onSubmit={saveTenant}><h3>Configuración del tenant</h3>{tenant ? <><div className="nxFormGrid"><label>Nombre visible<input defaultValue={tenant.name} name="name"/></label><label>Región<input defaultValue={tenant.region} name="region"/></label></div><div className="nxToggleList"><label><span><b>Solicitar consentimiento remoto</b><small>RustDesk debe contar con autorización antes de conectar.</small></span><input defaultChecked={tenant.policies.requireRemoteConsent} name="requireRemoteConsent" type="checkbox"/></label><label><span><b>Requerir SSO</b><small>Obliga el acceso corporativo cuando OIDC está configurado.</small></span><input defaultChecked={tenant.policies.requireSso} name="requireSso" type="checkbox"/></label></div><button className="nxPrimaryAction" type="submit">Guardar configuración</button></> : <p className="nxAdminLoading">Cargando configuración del tenant...</p>}{tenantMessage && <p className="nxAdminMessage">{tenantMessage}</p>}</form> : selected === "Técnicos" ? <><h3>Técnicos y usuarios</h3>{usersLoading ? <p className="nxAdminLoading">Cargando usuarios del tenant...</p> : <div className="nxTableWrap"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Último acceso</th></tr></thead><tbody>{users.map((user) => <tr key={user.id}><td><b>{user.name}</b></td><td>{user.email}</td><td><select className="nxRoleSelect" value={user.role} onChange={(event) => void changeRole(user, event.target.value as UserRole)}><option>Usuario</option><option>Analista</option><option>Ejecutivo</option><option>Admin</option></select></td><td><span className="nxOnline">{user.status}</span></td><td>{user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString("es-CL") : "Sin acceso"}</td></tr>)}</tbody></table></div>}{usersMessage && <p className="nxAdminMessage">{usersMessage}</p>}</> : isAudit ? <><h3>Actividad reciente</h3><div className="nxTableWrap"><table><thead><tr><th>Actor</th><th>Acción</th><th>Fecha</th><th>Resultado</th></tr></thead><tbody><tr><td>{session.name}</td><td>Abrió {selected.toLowerCase()}</td><td>Ahora</td><td><span className="nxOnline">Registrado</span></td></tr><tr><td>Sistema</td><td>Sincronización de tickets</td><td>Hoy, 09:42</td><td><span className="nxOnline">Correcto</span></td></tr></tbody></table></div></> : isRoles ? <><h3>Roles configurados</h3>{usersLoading ? <p className="nxAdminLoading">Cargando usuarios del tenant...</p> : <div className="nxRoleList">{users.map((user) => <label key={user.id}><span><b>{user.name}</b><small>{user.email} · {user.role}</small></span><input checked={user.status === "Activo"} readOnly type="checkbox"/></label>)}</div>}{usersMessage && <p className="nxAdminMessage">{usersMessage}</p>}</> : <><h3>Configuración de {title.toLowerCase()}</h3><div className="nxFormGrid"><label>Nombre visible<input defaultValue={title}/></label><label>Estado<select defaultValue="Activo"><option>Activo</option><option>Pendiente</option><option>Deshabilitado</option></select></label><label className="wide">Descripción<textarea defaultValue={description}/></label></div><div className="nxAdminNotice"><span className="nxOnline">Listo para configurar</span><p>Los cambios de este módulo quedarán registrados en la auditoría administrativa.</p></div></>}
     </div>}
   </section>;
