@@ -172,6 +172,19 @@ export type CreateDeviceInput = {
 };
 export type UpdateDeviceInput = Partial<CreateDeviceInput> & Pick<Device, "status">;
 
+export type Asset = {
+  id: string;
+  tenantId: string;
+  name: string;
+  type: "Servidor" | "Estación" | "Red" | "Licencia";
+  owner: string;
+  status: "Activo" | "En revisión" | "Retirado";
+  createdAt: string;
+};
+
+export type CreateAssetInput = Pick<Asset, "name" | "type" | "owner">;
+export type UpdateAssetInput = Partial<CreateAssetInput> & Pick<Asset, "status">;
+
 export type TenantConfig = {
   id: string;
   name: string;
