@@ -229,6 +229,8 @@ export type TicketTemplate = { id: string; tenantId: string; name: string; subje
 export type CreateTicketTemplateInput = Pick<TicketTemplate, "name" | "subject" | "body">;
 export type UpdateTicketTemplateInput = Partial<CreateTicketTemplateInput>;
 
+export type CalendarSettings = { provider: "Microsoft 365" | "Google Calendar" | "iCal"; calendarId: string; timezone: string; syncEnabled: boolean };
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;
