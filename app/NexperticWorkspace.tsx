@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState, useTransition } from "react";
-import type { Agent, AuditEvent, Client, Device, KnowledgeArticle, RemoteSupportSession, SessionUser, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
+import type { Agent, AuditEvent, AutomationRule, Client, Device, KnowledgeArticle, RemoteSupportSession, SessionUser, SlaConfig, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
 import { ServiceDeskConsole } from "./ServiceDeskConsole";
 import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
@@ -455,6 +455,12 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
   if (selected === "Sesión y seguridad") {
     return <AdminSessionSecurity session={session}/>;
   }
+  if (selected === "SLA" || selected === "Horario comercial") {
+    return <AdminSlaSettings mode={selected}/>;
+  }
+  if (selected === "Reglas de automatización") {
+    return <AdminAutomationSettings/>;
+  }
   return <section className="nxAdminDetail">
     <div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / {selected === "Resumen de administración" ? "Inicio" : selected}</p><h2>{title}</h2><p>{description}</p></div><span className="nxAdminBadge">Vista administrativa</span></div>
     {selected === "Resumen de administración" ? <div className="nxAdminCards"><article className="nxPanel"><span>Usuarios activos</span><strong>{summaryUsers.length || "-"}</strong><small>Datos actuales del tenant</small></article><article className="nxPanel"><span>Eventos auditados</span><strong>{summaryAuditCount ?? "-"}</strong><small>Registros de actividad disponibles</small></article><article className="nxPanel"><span>Configuración</span><strong>{tenant ? "Lista" : "-"}</strong><small>Estado de configuración del tenant</small></article><article className="nxPanel"><span>Última actividad</span><strong>Ahora</strong><small>{session.name} abrió el centro de administración</small></article></div> : <div className="nxPanel nxAdminContent">
@@ -483,6 +489,23 @@ function AdminAuditView() {
     <div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / Registro de auditoría</p><h2>Actividad registrada</h2><p>Consulta las acciones operativas y administrativas guardadas para este tenant.</p></div><span className="nxAdminBadge">Datos reales</span></div>
     <div className="nxPanel nxAdminContent"><h3>Eventos recientes</h3>{message ? <p className="nxAdminMessage">{message}</p> : events.length === 0 ? <p className="nxAdminLoading">No hay eventos registrados todavía.</p> : <div className="nxTableWrap"><table><thead><tr><th>Actor</th><th>Acción</th><th>Detalle</th><th>Fecha</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td>{event.actor}</td><td><b>{event.action}</b></td><td>{event.detail}</td><td>{new Date(event.at).toLocaleString("es-CL")}</td></tr>)}</tbody></table></div>}</div>
   </section>;
+}
+
+function AdminSlaSettings({ mode }: { mode: "SLA" | "Horario comercial" }) {
+  const [config, setConfig] = useState<SlaConfig | null>(null);
+  const [message, setMessage] = useState("");
+  useEffect(() => { fetch("/api/settings/sla").then(async (response) => { const payload = (await response.json()) as { data?: SlaConfig; error?: string }; if (!response.ok) throw new Error(payload.error ?? "No se pudo cargar SLA."); setConfig(payload.data ?? null); }).catch((error: Error) => setMessage(error.message)); }, []);
+  async function save(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); const next = { responseMinutes: Number(form.get("responseMinutes")), resolutionMinutes: Number(form.get("resolutionMinutes")), businessStart: String(form.get("businessStart")), businessEnd: String(form.get("businessEnd")), timezone: String(form.get("timezone")) }; const response = await fetch("/api/settings/sla", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }); const payload = (await response.json()) as { data?: SlaConfig; error?: string }; setMessage(response.ok ? "Configuración guardada correctamente." : payload.error ?? "No se pudo guardar SLA."); if (response.ok) setConfig(payload.data ?? next); }
+  return <section className="nxAdminDetail"><div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / {mode}</p><h2>{mode === "SLA" ? "Objetivos de servicio" : "Horario comercial"}</h2><p>Configura los tiempos y el horario que utilizará la operación del tenant.</p></div><span className="nxAdminBadge">Persistente</span></div><div className="nxPanel nxAdminContent">{config ? <form className="nxAdminForm" onSubmit={save}><div className="nxFormGrid"><label>Respuesta (minutos)<input min="1" name="responseMinutes" type="number" defaultValue={config.responseMinutes}/></label><label>Resolución (minutos)<input min="1" name="resolutionMinutes" type="number" defaultValue={config.resolutionMinutes}/></label><label>Inicio de atención<input name="businessStart" type="time" defaultValue={config.businessStart}/></label><label>Fin de atención<input name="businessEnd" type="time" defaultValue={config.businessEnd}/></label><label className="wide">Zona horaria<input name="timezone" defaultValue={config.timezone}/></label></div><button className="nxPrimaryAction" type="submit">Guardar configuración</button></form> : <p className="nxAdminLoading">Cargando configuración...</p>}{message ? <p className="nxAdminMessage">{message}</p> : null}</div></section>;
+}
+
+function AdminAutomationSettings() {
+  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [draft, setDraft] = useState({ name: "", matchText: "", action: "Asignar a Mesa L1" as AutomationRule["action"] });
+  const [message, setMessage] = useState("");
+  useEffect(() => { fetch("/api/settings/automation").then(async (response) => { const payload = (await response.json()) as { data?: AutomationRule[] }; if (response.ok) setRules(payload.data ?? []); }).catch(() => setMessage("No se pudieron cargar las reglas.")); }, []);
+  async function save(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const response = await fetch("/api/settings/automation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) }); const payload = (await response.json()) as { data?: AutomationRule; error?: string }; if (!response.ok || !payload.data) { setMessage(payload.error ?? "No se pudo crear la regla."); return; } setRules((current) => [...current, payload.data as AutomationRule]); setDraft({ name: "", matchText: "", action: "Asignar a Mesa L1" }); setMessage("Regla creada correctamente."); }
+  return <section className="nxAdminDetail"><div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / Reglas de automatización</p><h2>Automatiza la operación</h2><p>Define condiciones simples para clasificar y enrutar tickets nuevos.</p></div><span className="nxAdminBadge">Persistente</span></div><form className="nxPanel nxAdminContent" onSubmit={save}><h3>Nueva regla</h3><div className="nxFormGrid"><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })}/></label><label>Texto que activa la regla<input required value={draft.matchText} onChange={(event) => setDraft({ ...draft, matchText: event.target.value })}/></label><label className="wide">Acción<select value={draft.action} onChange={(event) => setDraft({ ...draft, action: event.target.value as AutomationRule["action"] })}><option>Asignar a Mesa L1</option><option>Prioridad Alta</option></select></label></div><button className="nxPrimaryAction" type="submit">Guardar regla</button>{message ? <p className="nxAdminMessage">{message}</p> : null}</form><div className="nxPanel nxAdminContent"><h3>Reglas activas</h3>{rules.length ? <div className="nxRoleList">{rules.map((rule) => <label key={rule.id}><span><b>{rule.name}</b><small>Si contiene “{rule.matchText}” · {rule.action}</small></span><span className="nxOnline">Activa</span></label>)}</div> : <p className="nxAdminLoading">No hay reglas configuradas todavía.</p>}</div></section>;
 }
 
 function AdminSessionSecurity({ session }: { session: SessionUser }) {

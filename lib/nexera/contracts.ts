@@ -195,6 +195,16 @@ export type UpdateTenantConfigInput = Partial<Pick<TenantConfig, "name" | "regio
   policies?: Partial<TenantConfig["policies"]>;
 };
 
+export type SlaConfig = {
+  responseMinutes: number;
+  resolutionMinutes: number;
+  businessStart: string;
+  businessEnd: string;
+  timezone: string;
+};
+
+export type AutomationRule = { id: string; tenantId: string; name: string; matchText: string; action: "Asignar a Mesa L1" | "Prioridad Alta"; enabled: boolean };
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;
