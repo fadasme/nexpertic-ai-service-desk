@@ -103,3 +103,16 @@ export async function POST(request: Request) {
     { headers },
   );
 }
+
+export async function PATCH(request: Request) {
+  const current = await verifySessionCookie(cookieValue(request, sessionCookieName()));
+  if (!current) return Response.json({ error: "Unauthenticated" }, { status: 401 });
+  const body = (await request.json().catch(() => ({}))) as { name?: unknown; email?: unknown };
+  const name = typeof body.name === "string" ? body.name.trim() : current.name;
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : current.email;
+  if (!name || !email || !email.includes("@")) return Response.json({ error: "Nombre y correo válidos son obligatorios" }, { status: 400 });
+  const session = { ...current, name, email, expiresAt: sessionExpiresAt() };
+  const headers = new Headers();
+  headers.append("set-cookie", buildSessionSetCookie(await signSessionCookie(session)));
+  return Response.json({ data: session }, { headers });
+}
