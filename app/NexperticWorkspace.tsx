@@ -594,6 +594,9 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
   if (selected === "Mi perfil") {
     return <AdminProfile session={session}/>;
   }
+  if (selected === "Roles y permisos") {
+    return <AdminRolesPermissions/>;
+  }
   if (selected === "Importar datos") {
     return <AdminImportData/>;
   }
@@ -692,6 +695,11 @@ function AdminProfile({ session }: { session: SessionUser }) {
   const [message, setMessage] = useState("");
   async function save(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const response = await fetch("/api/auth/session", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) }); const payload = (await response.json()) as { data?: SessionUser; error?: string }; setMessage(response.ok ? "Perfil actualizado correctamente." : payload.error ?? "No se pudo actualizar el perfil."); if (response.ok && payload.data) setProfile({ name: payload.data.name, email: payload.data.email }); }
   return <section className="nxAdminDetail"><div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="users"/></span><div><p className="nxEyebrow">Administración / Mi perfil</p><h2>Tu información de acceso</h2><p>Actualiza los datos visibles de la sesión administrativa actual.</p></div><span className="nxAdminBadge">Sesión firmada</span></div><div className="nxPanel nxAdminContent"><form className="nxAdminForm" onSubmit={save}><div className="nxFormGrid"><label>Nombre<input required value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })}/></label><label>Correo<input required type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })}/></label><label>Rol<input disabled value={session.role}/></label><label>Tenant<input disabled value={session.tenant}/></label></div><button className="nxPrimaryAction" type="submit">Guardar perfil</button></form>{message ? <p className="nxAdminMessage">{message}</p> : null}</div></section>;
+}
+
+function AdminRolesPermissions() {
+  const permissions: Record<UserRole, string[]> = { Usuario: ["Crear tickets", "Consultar tickets propios", "Consultar conocimiento"], Analista: ["Consultar tickets", "Actualizar tickets", "Sincronizar GLPI", "Usar RustDesk", "Auditoría", "Consultar conocimiento", "Consultar agentes"], Ejecutivo: ["Consultar panel", "Consultar tickets", "Consultar auditoría", "Consultar conocimiento"], Admin: ["Acceso total", "Gestionar usuarios", "Gestionar configuración"] };
+  return <section className="nxAdminDetail"><div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / Roles y permisos</p><h2>Permisos por perfil</h2><p>Revisa las capacidades efectivas de cada rol del tenant.</p></div><span className="nxAdminBadge">Política activa</span></div><div className="nxPanel nxAdminContent"><div className="nxTableWrap"><table><thead><tr><th>Rol</th><th>Permisos activos</th></tr></thead><tbody>{(Object.keys(permissions) as UserRole[]).map((role) => <tr key={role}><td><b>{role}</b></td><td>{permissions[role].join(" · ")}</td></tr>)}</tbody></table></div><p className="nxAdminNotice">La modificación individual de permisos se habilitará cuando se configure una política personalizada por tenant.</p></div></section>;
 }
 
 function AdminImportData() {
