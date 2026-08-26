@@ -155,6 +155,7 @@ export type CreateClientInput = {
   name: string;
   email: string;
 };
+export type UpdateClientInput = Partial<CreateClientInput> & Pick<Client, "status">;
 
 export type Device = {
   id: string;
@@ -169,6 +170,7 @@ export type CreateDeviceInput = {
   name: string;
   clientName: string;
 };
+export type UpdateDeviceInput = Partial<CreateDeviceInput> & Pick<Device, "status">;
 
 export type TenantConfig = {
   id: string;

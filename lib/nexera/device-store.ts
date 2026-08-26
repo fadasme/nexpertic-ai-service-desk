@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import type { CreateDeviceInput, Device } from "./contracts";
+import type { CreateDeviceInput, Device, UpdateDeviceInput } from "./contracts";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
 
 type DeviceRow = { id: string; tenant_id: string; name: string; client_name: string; status: Device["status"]; created_at: string };
@@ -35,4 +35,31 @@ export async function createDevice(input: CreateDeviceInput, tenantId = DEFAULT_
   } catch { /* Fall through to the local store. */ }
   getMemory().push(device);
   return device;
+}
+
+export async function updateDevice(id: string, input: UpdateDeviceInput, tenantId = DEFAULT_TENANT_ID) {
+  try {
+    if (await ensureTable()) {
+      const current = await env.DB.prepare("select * from devices where id = ? and tenant_id = ?").bind(id, tenantId).first<DeviceRow>();
+      if (!current) return null;
+      const next = { ...map(current), ...input };
+      await env.DB.prepare("update devices set name = ?, client_name = ?, status = ? where id = ? and tenant_id = ?").bind(next.name, next.clientName, next.status, id, tenantId).run();
+      return next;
+    }
+  } catch { /* Fall through to memory. */ }
+  const store = getMemory();
+  const index = store.findIndex((item) => item.id === id && item.tenantId === tenantId);
+  if (index < 0) return null;
+  store[index] = { ...store[index], ...input };
+  return store[index];
+}
+
+export async function deleteDevice(id: string, tenantId = DEFAULT_TENANT_ID) {
+  try {
+    if (await ensureTable()) return Boolean((await env.DB.prepare("delete from devices where id = ? and tenant_id = ?").bind(id, tenantId).run()).meta.changes);
+  } catch { /* Fall through to memory. */ }
+  const store = getMemory();
+  const before = store.length;
+  memory.nexeraDevices = store.filter((item) => !(item.id === id && item.tenantId === tenantId));
+  return memory.nexeraDevices.length < before;
 }

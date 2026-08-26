@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import type { Client, CreateClientInput } from "./contracts";
+import type { Client, CreateClientInput, UpdateClientInput } from "./contracts";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
 
 type ClientRow = { id: string; tenant_id: string; name: string; email: string; status: Client["status"]; created_at: string };
@@ -48,4 +48,31 @@ export async function createClient(input: CreateClientInput, tenantId = DEFAULT_
   if (store.some((item) => item.tenantId === tenantId && item.email === client.email)) throw new Error("A client with this email already exists");
   store.push(client);
   return client;
+}
+
+export async function updateClient(id: string, input: UpdateClientInput, tenantId = DEFAULT_TENANT_ID) {
+  try {
+    if (await ensureTable()) {
+      const current = await env.DB.prepare("select * from clients where id = ? and tenant_id = ?").bind(id, tenantId).first<ClientRow>();
+      if (!current) return null;
+      const next = { ...map(current), ...input };
+      await env.DB.prepare("update clients set name = ?, email = ?, status = ? where id = ? and tenant_id = ?").bind(next.name, next.email, next.status, id, tenantId).run();
+      return next;
+    }
+  } catch { /* Fall through to memory. */ }
+  const store = getMemory();
+  const index = store.findIndex((item) => item.id === id && item.tenantId === tenantId);
+  if (index < 0) return null;
+  store[index] = { ...store[index], ...input };
+  return store[index];
+}
+
+export async function deleteClient(id: string, tenantId = DEFAULT_TENANT_ID) {
+  try {
+    if (await ensureTable()) return Boolean((await env.DB.prepare("delete from clients where id = ? and tenant_id = ?").bind(id, tenantId).run()).meta.changes);
+  } catch { /* Fall through to memory. */ }
+  const store = getMemory();
+  const before = store.length;
+  memory.nexeraClients = store.filter((item) => !(item.id === id && item.tenantId === tenantId));
+  return memory.nexeraClients.length < before;
 }
