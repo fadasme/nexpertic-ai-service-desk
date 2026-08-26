@@ -235,6 +235,8 @@ export type TechnicianGroup = { id: string; tenantId: string; name: string; spec
 export type CreateTechnicianGroupInput = Pick<TechnicianGroup, "name" | "specialty">;
 export type UpdateTechnicianGroupInput = Partial<CreateTechnicianGroupInput> & Pick<TechnicianGroup, "status">;
 
+export type CustomField = { id: string; tenantId: string; name: string; appliesTo: "Tickets" | "Clientes" | "Activos"; type: "Texto" | "Número" | "Lista"; required: boolean; createdAt: string };
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;
