@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { knowledgeArticles } from "./demo-data";
-import type { CreateKnowledgeArticleInput, KnowledgeArticle } from "./contracts";
+import type { CreateKnowledgeArticleInput, KnowledgeArticle, UpdateKnowledgeArticleInput } from "./contracts";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
 
 type ArticleRow = { id: string; tenant_id: string; title: string; domain: string; quality_score: number; uses: number; status: KnowledgeArticle["status"]; summary: string };
@@ -36,4 +36,21 @@ export async function createKnowledgeArticle(input: CreateKnowledgeArticleInput,
   } catch { /* Fall through to the local store. */ }
   getMemory().unshift(article);
   return article;
+}
+
+export async function updateKnowledgeArticle(id: string, input: UpdateKnowledgeArticleInput, tenantId = DEFAULT_TENANT_ID) {
+  try {
+    if (await ensureTable()) {
+      const current = await env.DB.prepare("select * from knowledge_articles where id = ? and tenant_id = ?").bind(id, tenantId).first<ArticleRow>();
+      if (!current) return null;
+      const next = { ...map(current), ...input };
+      await env.DB.prepare("update knowledge_articles set title = ?, domain = ?, status = ?, summary = ? where id = ? and tenant_id = ?").bind(next.title, next.domain, next.status, next.summary, id, tenantId).run();
+      return next;
+    }
+  } catch { /* Fall through to the local store. */ }
+  const store = getMemory();
+  const index = store.findIndex((item) => item.id === id);
+  if (index < 0) return null;
+  store[index] = { ...store[index], ...input };
+  return store[index];
 }

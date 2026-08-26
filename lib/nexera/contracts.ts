@@ -54,6 +54,7 @@ export type KnowledgeArticle = {
 };
 
 export type CreateKnowledgeArticleInput = Pick<KnowledgeArticle, "title" | "domain" | "summary">;
+export type UpdateKnowledgeArticleInput = Partial<CreateKnowledgeArticleInput> & Pick<KnowledgeArticle, "status">;
 
 export type ExecutiveMetric = {
   label: string;

@@ -1,6 +1,6 @@
 import { requirePermission } from "@/lib/nexera/auth-store";
 import { listKnowledgeArticles } from "@/lib/nexera/service";
-import { createKnowledgeArticle, listStoredKnowledge } from "@/lib/nexera/knowledge-store";
+import { createKnowledgeArticle, listStoredKnowledge, updateKnowledgeArticle } from "@/lib/nexera/knowledge-store";
 import { tenantIdFromRequest } from "@/lib/nexera/tenant-context";
 
 export async function GET(request: Request) {
@@ -26,4 +26,14 @@ export async function POST(request: Request) {
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not create article" }, { status: 400 });
   }
+}
+
+export async function PATCH(request: Request) {
+  const authorization = await requirePermission(request, "knowledge:write");
+  if (!authorization.allowed) return authorization.response;
+  const body = (await request.json().catch(() => ({}))) as { id?: unknown; title?: unknown; domain?: unknown; summary?: unknown; status?: unknown };
+  if (typeof body.id !== "string" || !body.id) return Response.json({ error: "id is required" }, { status: 400 });
+  const article = await updateKnowledgeArticle(body.id, { title: typeof body.title === "string" ? body.title.trim() : undefined, domain: typeof body.domain === "string" ? body.domain.trim() : undefined, summary: typeof body.summary === "string" ? body.summary.trim() : undefined, status: body.status === "Validado" ? "Validado" : "En revision" }, await tenantIdFromRequest(request));
+  if (!article) return Response.json({ error: "Article not found" }, { status: 404 });
+  return Response.json({ data: article });
 }
