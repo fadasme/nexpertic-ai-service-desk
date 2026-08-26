@@ -583,6 +583,9 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
   if (selected === "Mi perfil") {
     return <AdminProfile session={session}/>;
   }
+  if (selected === "Importar datos") {
+    return <AdminImportData/>;
+  }
   return <section className="nxAdminDetail">
     <div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / {selected === "Resumen de administración" ? "Inicio" : selected}</p><h2>{title}</h2><p>{description}</p></div><span className="nxAdminBadge">Vista administrativa</span></div>
     {selected === "Resumen de administración" ? <div className="nxAdminCards"><article className="nxPanel"><span>Usuarios activos</span><strong>{summaryUsers.length || "-"}</strong><small>Datos actuales del tenant</small></article><article className="nxPanel"><span>Eventos auditados</span><strong>{summaryAuditCount ?? "-"}</strong><small>Registros de actividad disponibles</small></article><article className="nxPanel"><span>Configuración</span><strong>{tenant ? "Lista" : "-"}</strong><small>Estado de configuración del tenant</small></article><article className="nxPanel"><span>Última actividad</span><strong>Ahora</strong><small>{session.name} abrió el centro de administración</small></article></div> : <div className="nxPanel nxAdminContent">
@@ -675,6 +678,13 @@ function AdminProfile({ session }: { session: SessionUser }) {
   const [message, setMessage] = useState("");
   async function save(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const response = await fetch("/api/auth/session", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) }); const payload = (await response.json()) as { data?: SessionUser; error?: string }; setMessage(response.ok ? "Perfil actualizado correctamente." : payload.error ?? "No se pudo actualizar el perfil."); if (response.ok && payload.data) setProfile({ name: payload.data.name, email: payload.data.email }); }
   return <section className="nxAdminDetail"><div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="users"/></span><div><p className="nxEyebrow">Administración / Mi perfil</p><h2>Tu información de acceso</h2><p>Actualiza los datos visibles de la sesión administrativa actual.</p></div><span className="nxAdminBadge">Sesión firmada</span></div><div className="nxPanel nxAdminContent"><form className="nxAdminForm" onSubmit={save}><div className="nxFormGrid"><label>Nombre<input required value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })}/></label><label>Correo<input required type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })}/></label><label>Rol<input disabled value={session.role}/></label><label>Tenant<input disabled value={session.tenant}/></label></div><button className="nxPrimaryAction" type="submit">Guardar perfil</button></form>{message ? <p className="nxAdminMessage">{message}</p> : null}</div></section>;
+}
+
+function AdminImportData() {
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function importClients(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setMessage(""); const form = new FormData(event.currentTarget); const response = await fetch("/api/import/clients", { method: "POST", body: form }); const payload = (await response.json()) as { data?: { imported: number; skipped: number }; error?: string }; setBusy(false); setMessage(response.ok && payload.data ? `Importados: ${payload.data.imported}. Omitidos: ${payload.data.skipped}.` : payload.error ?? "No se pudo importar el archivo."); }
+  return <section className="nxAdminDetail"><div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="layers"/></span><div><p className="nxEyebrow">Administración / Importar datos</p><h2>Carga información inicial</h2><p>Importa clientes desde un archivo CSV para comenzar más rápido.</p></div><span className="nxAdminBadge">Validado</span></div><div className="nxPanel nxAdminContent"><form className="nxAdminForm" onSubmit={importClients}><label>Archivo CSV<input accept=".csv,text/csv" name="file" required type="file"/></label><p className="nxAdminNotice">Formato esperado: <b>nombre,correo</b> en la primera fila. Las filas inválidas se omitirán.</p><button className="nxPrimaryAction" disabled={busy} type="submit">{busy ? "Importando..." : "Importar clientes"}</button></form>{message ? <p className="nxAdminMessage">{message}</p> : null}</div></section>;
 }
 
 function AdminSessionSecurity({ session }: { session: SessionUser }) {
