@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState, useTransition } from "react";
-import type { Agent, AuditEvent, AutomationRule, Client, Device, KnowledgeArticle, RemoteSupportSession, SessionUser, SlaConfig, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
+import type { Agent, AuditEvent, AutomationRule, Client, Device, KnowledgeArticle, RemoteSupportSession, SecurityEvent, SessionUser, SlaConfig, TenantConfig, Ticket, UserAccount, UserRole } from "@/lib/nexera/contracts";
 import { ServiceDeskConsole } from "./ServiceDeskConsole";
 import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
@@ -267,7 +267,32 @@ function DevicesView({ remote }: { remote: RemoteSupportSession[] }) {
 }
 
 function AlertsView({ events }: { events: AuditEvent[] }) {
-  return <><PageTitle title="Alertas" text="Eventos que requieren atención operativa o de seguridad."/><div className="nxToolbar"><button type="button">Guardar vista</button><button type="button">Estado</button><button type="button">Categoría</button></div><div className="nxPanel nxDataPanel"><div className="nxTableWrap"><table><thead><tr><th>Detalle</th><th>Origen</th><th>Ticket</th><th>Creado</th><th>Estado</th></tr></thead><tbody>{events.map((event) => <tr key={event.id}><td><b>{event.action}</b><small>{event.detail}</small></td><td>{event.actor}</td><td>{event.ticketId}</td><td>{new Date(event.at).toLocaleString("es-CL")}</td><td><span className="nxPending">Revisar</span></td></tr>)}</tbody></table></div>{events.length === 0 && <EmptyState icon="alert" title="No hay alertas" text="Los nuevos eventos aparecerán aquí automáticamente."/>}</div></>;
+  const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
+  const [resolved, setResolved] = useState<string[]>([]);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    fetch("/api/security/events")
+      .then(async (response) => {
+        const payload = (await response.json()) as { data?: SecurityEvent[]; error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "No se pudieron cargar las alertas.");
+        setSecurityEvents(payload.data ?? []);
+      })
+      .catch((error: Error) => setMessage(error.message));
+  }, []);
+
+  const alerts = securityEvents.length ? securityEvents : events.map((event) => ({
+    id: event.id,
+    action: event.action,
+    at: event.at,
+    detail: event.detail,
+    severity: "info" as const,
+    source: "admin" as const,
+    ticketId: event.ticketId,
+  }));
+  const resolve = (id: string) => setResolved((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
+  return <><PageTitle title="Alertas" text={`${alerts.length} eventos que requieren atención operativa o de seguridad.`} action={<button className="nxPrimaryAction" onClick={() => window.location.reload()} type="button">Actualizar alertas</button>}/><div className="nxToolbar"><button type="button">Todas</button><button type="button">Críticas</button><button type="button">Seguridad</button></div><div className="nxPanel nxDataPanel">{message ? <p className="nxAdminMessage">{message}</p> : null}<div className="nxTableWrap"><table><thead><tr><th>Detalle</th><th>Severidad</th><th>Origen</th><th>Ticket</th><th>Creado</th><th>Estado</th></tr></thead><tbody>{alerts.map((event) => { const isResolved = resolved.includes(event.id); return <tr key={event.id}><td><b>{event.action}</b><small>{event.detail}</small></td><td><span className={event.severity === "critical" ? "nxPill critica" : event.severity === "warning" ? "nxPill alta" : "nxOnline"}>{event.severity === "critical" ? "Crítica" : event.severity === "warning" ? "Advertencia" : "Informativa"}</span></td><td>{event.source}</td><td>{event.ticketId ?? "-"}</td><td>{new Date(event.at).toLocaleString("es-CL")}</td><td><button onClick={() => resolve(event.id)} type="button"><span className={isResolved ? "nxOnline" : "nxPending"}>{isResolved ? "Atendida" : "Revisar"}</span></button></td></tr>; })}</tbody></table></div>{alerts.length === 0 && <EmptyState icon="alert" title="No hay alertas" text="Los nuevos eventos aparecerán aquí automáticamente."/>}</div></>;
 }
 
 function PatchesView({ remote }: { remote: RemoteSupportSession[] }) {
