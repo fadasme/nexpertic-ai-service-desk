@@ -16,6 +16,7 @@ type SecurityEventRow = {
   severity: SecurityEvent["severity"];
   source: SecurityEvent["source"];
   ticket_id?: string | null;
+  acknowledged_at?: string | null;
 };
 
 const globalStore = globalThis as typeof globalThis & {
@@ -41,6 +42,7 @@ function mapRow(row: SecurityEventRow): SecurityEvent {
     severity: row.severity,
     source: row.source,
     ticketId: row.ticket_id ?? undefined,
+    acknowledgedAt: row.acknowledged_at ?? undefined,
   };
 }
 
@@ -52,6 +54,7 @@ async function ensureSecuritySchema(db: D1Database) {
     .prepare("alter table security_events add column tenant_id text not null default 'tenant-nexera-pilot'")
     .run()
     .catch(() => undefined);
+  await db.prepare("alter table security_events add column acknowledged_at text").run().catch(() => undefined);
 }
 
 export async function createSecurityEvent(input: CreateSecurityEventInput) {
@@ -72,14 +75,26 @@ export async function createSecurityEvent(input: CreateSecurityEventInput) {
   try {
     await ensureSecuritySchema(db);
     await db
-      .prepare("insert into security_events (id, tenant_id, action, at, detail, fingerprint, severity, source, ticket_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(event.id, event.tenantId ?? DEFAULT_TENANT_ID, event.action, event.at, event.detail, event.fingerprint ?? null, event.severity, event.source, event.ticketId ?? null)
+      .prepare("insert into security_events (id, tenant_id, action, at, detail, fingerprint, severity, source, ticket_id, acknowledged_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(event.id, event.tenantId ?? DEFAULT_TENANT_ID, event.action, event.at, event.detail, event.fingerprint ?? null, event.severity, event.source, event.ticketId ?? null, null)
       .run();
     return event;
   } catch {
     getStore().events = [event, ...getStore().events];
     return event;
   }
+}
+
+export async function acknowledgeSecurityEvent(id: string, tenantId = DEFAULT_TENANT_ID) {
+  const acknowledgedAt = new Date().toISOString();
+  const db = env.DB;
+  if (db) {
+    try { await ensureSecuritySchema(db); const result = await db.prepare("update security_events set acknowledged_at = ? where id = ? and tenant_id = ?").bind(acknowledgedAt, id, tenantId).run(); return result.meta.changes ? acknowledgedAt : null; } catch { /* Fall through to memory. */ }
+  }
+  const event = getStore().events.find((item) => item.id === id && (item.tenantId ?? DEFAULT_TENANT_ID) === tenantId);
+  if (!event) return null;
+  event.acknowledgedAt = acknowledgedAt;
+  return acknowledgedAt;
 }
 
 export async function listSecurityEvents(source?: SecurityEvent["source"], tenantId = DEFAULT_TENANT_ID) {

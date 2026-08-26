@@ -118,6 +118,7 @@ export type SecurityEvent = {
   severity: SecurityEventSeverity;
   source: "rustdesk-consent" | "auth" | "glpi" | "admin";
   ticketId?: string;
+  acknowledgedAt?: string;
 };
 
 export type CreateSecurityEventInput = Omit<SecurityEvent, "at" | "id">;
