@@ -218,6 +218,13 @@ export type SlaConfig = {
 
 export type AutomationRule = { id: string; tenantId: string; name: string; matchText: string; action: "Asignar a Mesa L1" | "Prioridad Alta"; enabled: boolean };
 
+export type TicketSettings = {
+  defaultPriority: TicketPriority;
+  defaultOwner: string;
+  autoAssign: boolean;
+  allowRequesterReply: boolean;
+};
+
 export type IdentityProviderConfig = {
   authorizationUrl?: string;
   clientIdConfigured: boolean;

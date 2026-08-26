@@ -1,0 +1,11 @@
+import { env } from "cloudflare:workers";
+import type { TicketSettings } from "./contracts";
+import { DEFAULT_TENANT_ID } from "./tenant-context";
+
+const defaults: TicketSettings = { defaultPriority: "Media", defaultOwner: "Mesa L1", autoAssign: true, allowRequesterReply: true };
+type Row = { tenant_id: string; default_priority: TicketSettings["defaultPriority"]; default_owner: string; auto_assign: number; allow_requester_reply: number };
+const memory = globalThis as typeof globalThis & { nexeraTicketSettings?: Record<string, TicketSettings> };
+function map(row: Row): TicketSettings { return { defaultPriority: row.default_priority, defaultOwner: row.default_owner, autoAssign: Boolean(row.auto_assign), allowRequesterReply: Boolean(row.allow_requester_reply) }; }
+async function ensureTable() { if (!env.DB) return false; await env.DB.prepare("create table if not exists ticket_settings (tenant_id text primary key, default_priority text not null, default_owner text not null, auto_assign integer not null, allow_requester_reply integer not null)").run(); return true; }
+export async function getTicketSettings(tenantId = DEFAULT_TENANT_ID) { try { if (await ensureTable()) { const row = await env.DB.prepare("select * from ticket_settings where tenant_id = ?").bind(tenantId).first<Row>(); if (row) return map(row); } } catch { /* Use memory fallback when D1 is unavailable. */ } return memory.nexeraTicketSettings?.[tenantId] ?? defaults; }
+export async function updateTicketSettings(input: TicketSettings, tenantId = DEFAULT_TENANT_ID) { try { if (await ensureTable()) { await env.DB.prepare("insert into ticket_settings (tenant_id, default_priority, default_owner, auto_assign, allow_requester_reply) values (?, ?, ?, ?, ?) on conflict(tenant_id) do update set default_priority=excluded.default_priority, default_owner=excluded.default_owner, auto_assign=excluded.auto_assign, allow_requester_reply=excluded.allow_requester_reply").bind(tenantId, input.defaultPriority, input.defaultOwner, input.autoAssign ? 1 : 0, input.allowRequesterReply ? 1 : 0).run(); return input; } } catch { /* Fall through to the local store. */ } memory.nexeraTicketSettings ??= {}; memory.nexeraTicketSettings[tenantId] = input; return input; }
