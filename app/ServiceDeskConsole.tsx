@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { suggestKnowledgeArticle } from "@/lib/nexera/knowledge-search";
 import { formatUtcTime } from "@/lib/nexera/time-format";
 import { getTicketWorkflowSteps, suggestNextTicketStep } from "@/lib/nexera/ticket-workflow";
-import type { AuditEvent, CreateAuditEventInput, CreateTicketInput, KnowledgeArticle, RemoteSupportSession, SessionUser, Ticket, TicketPriority, TicketStatus, UpdateTicketInput } from "@/lib/nexera/contracts";
+import type { AuditEvent, CreateAuditEventInput, CreateTicketInput, KnowledgeArticle, RemoteSupportSession, SessionUser, Ticket, TicketPriority, TicketStatus, TicketTemplate, UpdateTicketInput } from "@/lib/nexera/contracts";
 
 type ChatMessage = {
   author: "agent" | "user";
@@ -307,6 +307,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [draftPriority, setDraftPriority] = useState<TicketPriority | "Sugerida">("Sugerida");
+  const [savedTemplates, setSavedTemplates] = useState<TicketTemplate[]>([]);
   const [notice, setNotice] = useState<ConsoleNotice | null>(null);
   const [remoteSessions, setRemoteSessions] = useState<RemoteSupportSession[]>(initialRemoteSessions);
   const [ticketAction, setTicketAction] = useState<TicketActionState>({ kind: "idle" });
@@ -335,6 +336,13 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   const ticketDraftReady = Boolean(draft.trim() || structuredDraft.trim());
   const ticketSignalTone = ticketSignal ? (ticketSignal.priority === "Alta" ? "danger" : "warning") : "warning";
   const ticketPriorityMode = draftPriority === "Sugerida" ? "Automatica" : "Manual";
+
+  useEffect(() => {
+    fetch("/api/settings/templates").then(async (response) => {
+      const payload = (await response.json()) as { data?: TicketTemplate[] };
+      if (response.ok) setSavedTemplates(payload.data ?? []);
+    }).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (draftPriority === "Sugerida") {
@@ -1567,6 +1575,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
           </aside>
         </div>
         <form className="chatComposer" onSubmit={submitTicket}>
+          {savedTemplates.length ? <select aria-label="Usar plantilla" defaultValue="" disabled={!canCreateTicket || actionBusy} onChange={(event) => { const template = savedTemplates.find((item) => item.id === event.target.value); if (template) setDraft(`${template.subject}\n\n${template.body}`); }}><option value="">Usar plantilla...</option>{savedTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}</select> : null}
           <input disabled={!canCreateTicket || actionBusy} onChange={(event) => setDraft(event.target.value)} placeholder={canCreateTicket ? "Describe el incidente..." : "El rol actual no puede crear tickets"} value={draft} />
           <div className="priorityField">
             <span>{draftPriority === "Sugerida" ? "Sugerida por IA" : "Editada manualmente"}</span>
