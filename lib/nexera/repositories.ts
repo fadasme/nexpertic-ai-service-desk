@@ -164,6 +164,7 @@ type TicketRow = {
   sla: Ticket["sla"];
   source: Ticket["source"];
   created_at: string;
+  custom_fields?: string | null;
 };
 
 type AuditEventRow = {
@@ -279,7 +280,7 @@ export const memoryTicketRepository: TicketRepository = {
     }
 
     const store = getStore();
-    const ticket = inferTicket(description, store.tickets.length, input.requester, input.source, input.tenantId);
+    const ticket = { ...inferTicket(description, store.tickets.length, input.requester, input.source, input.tenantId), customFields: input.customFields };
     store.tickets = [ticket, ...store.tickets];
     return ticket;
   },
@@ -448,6 +449,7 @@ function mapTicketRow(row: TicketRow): Ticket {
     sla: row.sla,
     source: row.source,
     createdAt: row.created_at,
+    customFields: row.custom_fields ? JSON.parse(row.custom_fields) as Record<string, string> : undefined,
   };
 }
 
@@ -519,12 +521,13 @@ function mapTenantConfigRow(row: TenantConfigRow): TenantConfig {
 async function ensureD1Schema(db: D1Database) {
   await db.batch([
     db.prepare("create table if not exists schema_migrations (id text primary key, applied_at text not null)"),
-    db.prepare("create table if not exists tickets (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', external_ref text not null, title text not null, requester text not null, priority text not null, status text not null, owner text not null, category text not null, confidence integer not null, ai_summary text not null, sla text not null, source text not null, created_at text not null)"),
+    db.prepare("create table if not exists tickets (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', external_ref text not null, title text not null, requester text not null, priority text not null, status text not null, owner text not null, category text not null, confidence integer not null, ai_summary text not null, sla text not null, source text not null, created_at text not null, custom_fields text)"),
     db.prepare("create table if not exists audit_events (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', ticket_id text not null references tickets(id), actor text not null, action text not null, detail text not null, at text not null)"),
     db.prepare("create table if not exists remote_support_sessions (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', ticket_id text not null references tickets(id), provider text not null, code text not null, status text not null, expires_in_minutes integer not null, launch_url text not null, created_at text not null, consent_expires_at text, consent_granted_at text, consent_rejected_at text, consent_token text)"),
     db.prepare("create table if not exists users (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', name text not null, email text not null unique, role text not null, tenant text not null, status text not null, last_access_at text)"),
     db.prepare("create table if not exists tenants (id text primary key, name text not null, slug text not null unique, status text not null, region text not null, glpi_enabled integer not null, oidc_enabled integer not null, rustdesk_enabled integer not null, demo_data_allowed integer not null, require_remote_consent integer not null, require_sso integer not null, created_at text not null)"),
   ]);
+  await db.prepare("alter table tickets add column custom_fields text").run().catch(() => undefined);
 
   await db
     .prepare("insert into schema_migrations (id, applied_at) values ('001-initial-schema', '2026-07-23T00:00:00.000Z') on conflict(id) do nothing")
@@ -649,10 +652,10 @@ const d1TicketRepository: TicketRepository = {
     try {
       await seedD1IfEmpty(db);
       const current = await db.prepare("select count(*) as total from tickets").first<{ total: number }>();
-      const ticket = inferTicket(input.description.trim(), current?.total ?? 0, input.requester, input.source, input.tenantId);
+      const ticket = { ...inferTicket(input.description.trim(), current?.total ?? 0, input.requester, input.source, input.tenantId), customFields: input.customFields };
       await db
-        .prepare("insert into tickets (id, tenant_id, external_ref, title, requester, priority, status, owner, category, confidence, ai_summary, sla, source, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(ticket.id, ticket.tenantId ?? DEFAULT_TENANT_ID, ticket.externalRef, ticket.title, ticket.requester, ticket.priority, ticket.status, ticket.owner, ticket.category, ticket.confidence, ticket.aiSummary, ticket.sla, ticket.source, ticket.createdAt)
+        .prepare("insert into tickets (id, tenant_id, external_ref, title, requester, priority, status, owner, category, confidence, ai_summary, sla, source, created_at, custom_fields) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(ticket.id, ticket.tenantId ?? DEFAULT_TENANT_ID, ticket.externalRef, ticket.title, ticket.requester, ticket.priority, ticket.status, ticket.owner, ticket.category, ticket.confidence, ticket.aiSummary, ticket.sla, ticket.source, ticket.createdAt, ticket.customFields ? JSON.stringify(ticket.customFields) : null)
         .run();
 
       return ticket;

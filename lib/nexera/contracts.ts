@@ -23,6 +23,7 @@ export type Ticket = {
   sla: "Critico" | "En riesgo" | "Normal";
   source: "chat" | "portal" | "email" | "api";
   createdAt: string;
+  customFields?: Record<string, string>;
 };
 
 export type CreateTicketInput = {
@@ -30,6 +31,7 @@ export type CreateTicketInput = {
   description: string;
   requester?: string;
   source?: Ticket["source"];
+  customFields?: Record<string, string>;
 };
 
 export type UpdateTicketInput = Partial<Pick<Ticket, "status" | "owner" | "externalRef" | "priority">>;

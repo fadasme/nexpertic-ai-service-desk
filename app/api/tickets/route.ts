@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       description: String(body.description ?? ""),
       requester,
       source: body.source,
+      customFields: body.customFields && typeof body.customFields === "object" ? body.customFields : undefined,
     });
     const description = String(body.description ?? "").toLowerCase();
     const ticketSettings = await getTicketSettings(tenantId);
