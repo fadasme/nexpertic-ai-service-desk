@@ -180,6 +180,7 @@ function ClientsView({ clients, tickets }: { clients: string[]; tickets: Ticket[
   const [directory, setDirectory] = useState<Client[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"Todos" | Client["status"]>("Todos");
   const [message, setMessage] = useState("");
   const [draft, setDraft] = useState({ name: "", email: "" });
 
@@ -218,11 +219,12 @@ function ClientsView({ clients, tickets }: { clients: string[]; tickets: Ticket[
     setShowForm(true);
   }
 
-  const rows = directory.length ? directory : clients.map((name) => ({ id: name, tenantId: "", name, email: name.includes("@") ? name : "", status: "Activo" as const, createdAt: "" }));
+  const allRows = directory.length ? directory : clients.map((name) => ({ id: name, tenantId: "", name, email: name.includes("@") ? name : "", status: "Activo" as const, createdAt: "" }));
+  const rows = allRows.filter((client) => statusFilter === "Todos" || client.status === statusFilter);
   return <>
     <PageTitle title="Clientes" text="Solicitantes y organizaciones vinculadas a la mesa de servicio." action={<button className="nxPrimaryAction" onClick={() => { setEditingId(null); setDraft({ name: "", email: "" }); setShowForm((value) => !value); }} type="button">{showForm ? "Cerrar" : "+ Nuevo cliente"}</button>}/>
     {showForm ? <form className="nxPanel nxClientForm" onSubmit={saveClient}><h2>{editingId ? "Editar cliente" : "Nuevo cliente"}</h2><div className="nxFormGrid"><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })}/></label><label>Correo<input required type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })}/></label></div><button className="nxPrimaryAction" type="submit">{editingId ? "Actualizar cliente" : "Guardar cliente"}</button></form> : null}
-    <div className="nxToolbar"><button type="button">País</button><button type="button">Región</button><button type="button">Rango</button></div>
+    <div className="nxToolbar"><label>Estado<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "Todos" | Client["status"])}><option>Todos</option><option>Activo</option><option>Pendiente</option></select></label><span>{rows.length} clientes visibles</span></div>
     <div className="nxPanel nxDataPanel">{message ? <p className="nxAdminMessage">{message}</p> : null}<div className="nxTableWrap"><table><thead><tr><th>Nombre</th><th>Tickets</th><th>Última categoría</th><th>Contacto</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{rows.map((client) => { const own = tickets.filter((ticket) => ticket.requester === client.name); const persisted = Boolean(client.tenantId); return <tr key={client.id}><td><span className="nxInitial">{client.name.slice(0, 1)}</span><b>{client.name}</b></td><td>{own.length}</td><td>{own[0]?.category ?? "General"}</td><td>{client.email || "Sin correo registrado"}</td><td><span className={client.status === "Activo" ? "nxOnline" : "nxPending"}>{client.status}</span></td><td>{persisted ? <><button onClick={() => editClient(client)} type="button">Editar</button> <button onClick={() => void removeClient(client.id)} type="button">Eliminar</button></> : <small>Desde tickets</small>}</td></tr>; })}</tbody></table></div>{rows.length === 0 && <EmptyState icon="users" title="No hay clientes para mostrar" text="Crea el primer cliente para comenzar."/>}</div>
   </>;
 }
