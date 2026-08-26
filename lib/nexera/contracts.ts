@@ -53,6 +53,8 @@ export type KnowledgeArticle = {
   summary: string;
 };
 
+export type CreateKnowledgeArticleInput = Pick<KnowledgeArticle, "title" | "domain" | "summary">;
+
 export type ExecutiveMetric = {
   label: string;
   value: string;
