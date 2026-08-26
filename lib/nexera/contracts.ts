@@ -153,6 +153,20 @@ export type CreateClientInput = {
   email: string;
 };
 
+export type Device = {
+  id: string;
+  tenantId: string;
+  name: string;
+  clientName: string;
+  status: "Activo" | "Pendiente";
+  createdAt: string;
+};
+
+export type CreateDeviceInput = {
+  name: string;
+  clientName: string;
+};
+
 export type TenantConfig = {
   id: string;
   name: string;
