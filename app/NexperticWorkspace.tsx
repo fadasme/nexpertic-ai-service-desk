@@ -329,6 +329,7 @@ function AlertsView({ events }: { events: AuditEvent[] }) {
   const [securityEvents, setSecurityEvents] = useState<SecurityEvent[]>([]);
   const [resolved, setResolved] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [filter, setFilter] = useState<"all" | "critical" | "security">("all");
 
   useEffect(() => {
     fetch("/api/security/events")
@@ -349,13 +350,14 @@ function AlertsView({ events }: { events: AuditEvent[] }) {
     source: "admin" as const,
     ticketId: event.ticketId,
   }));
+  const visibleAlerts = alerts.filter((event) => filter === "all" || (filter === "critical" ? event.severity === "critical" : event.source !== "admin"));
   async function resolve(id: string) {
     const response = await fetch("/api/security/events", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     if (response.ok) setResolved((current) => current.includes(id) ? current : [...current, id]);
     else setMessage("No se pudo marcar la alerta como atendida.");
   }
 
-  return <><PageTitle title="Alertas" text={`${alerts.length} eventos que requieren atención operativa o de seguridad.`} action={<button className="nxPrimaryAction" onClick={() => window.location.reload()} type="button">Actualizar alertas</button>}/><div className="nxToolbar"><button type="button">Todas</button><button type="button">Críticas</button><button type="button">Seguridad</button></div><div className="nxPanel nxDataPanel">{message ? <p className="nxAdminMessage">{message}</p> : null}<div className="nxTableWrap"><table><thead><tr><th>Detalle</th><th>Severidad</th><th>Origen</th><th>Ticket</th><th>Creado</th><th>Estado</th></tr></thead><tbody>{alerts.map((event) => { const isResolved = resolved.includes(event.id) || Boolean("acknowledgedAt" in event && event.acknowledgedAt); return <tr key={event.id}><td><b>{event.action}</b><small>{event.detail}</small></td><td><span className={event.severity === "critical" ? "nxPill critica" : event.severity === "warning" ? "nxPill alta" : "nxOnline"}>{event.severity === "critical" ? "Crítica" : event.severity === "warning" ? "Advertencia" : "Informativa"}</span></td><td>{event.source}</td><td>{event.ticketId ?? "-"}</td><td>{new Date(event.at).toLocaleString("es-CL")}</td><td><button disabled={isResolved} onClick={() => void resolve(event.id)} type="button"><span className={isResolved ? "nxOnline" : "nxPending"}>{isResolved ? "Atendida" : "Revisar"}</span></button></td></tr>; })}</tbody></table></div>{alerts.length === 0 && <EmptyState icon="alert" title="No hay alertas" text="Los nuevos eventos aparecerán aquí automáticamente."/>}</div></>;
+  return <><PageTitle title="Alertas" text={`${visibleAlerts.length} eventos visibles de ${alerts.length}.`} action={<button className="nxPrimaryAction" onClick={() => window.location.reload()} type="button">Actualizar alertas</button>}/><div className="nxToolbar"><button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">Todas</button><button className={filter === "critical" ? "active" : ""} onClick={() => setFilter("critical")} type="button">Críticas</button><button className={filter === "security" ? "active" : ""} onClick={() => setFilter("security")} type="button">Seguridad</button></div><div className="nxPanel nxDataPanel">{message ? <p className="nxAdminMessage">{message}</p> : null}<div className="nxTableWrap"><table><thead><tr><th>Detalle</th><th>Severidad</th><th>Origen</th><th>Ticket</th><th>Creado</th><th>Estado</th></tr></thead><tbody>{visibleAlerts.map((event) => { const isResolved = resolved.includes(event.id) || Boolean("acknowledgedAt" in event && event.acknowledgedAt); return <tr key={event.id}><td><b>{event.action}</b><small>{event.detail}</small></td><td><span className={event.severity === "critical" ? "nxPill critica" : event.severity === "warning" ? "nxPill alta" : "nxOnline"}>{event.severity === "critical" ? "Crítica" : event.severity === "warning" ? "Advertencia" : "Informativa"}</span></td><td>{event.source}</td><td>{event.ticketId ?? "-"}</td><td>{new Date(event.at).toLocaleString("es-CL")}</td><td><button disabled={isResolved} onClick={() => void resolve(event.id)} type="button"><span className={isResolved ? "nxOnline" : "nxPending"}>{isResolved ? "Atendida" : "Revisar"}</span></button></td></tr>; })}</tbody></table></div>{visibleAlerts.length === 0 && <EmptyState icon="alert" title="No hay alertas para este filtro" text="Prueba con otra vista o actualiza los eventos."/>}</div></>;
 }
 
 function PatchesView({ remote }: { remote: RemoteSupportSession[] }) {
