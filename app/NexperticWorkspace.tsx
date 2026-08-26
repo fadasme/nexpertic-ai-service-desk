@@ -212,15 +212,31 @@ function KnowledgeView({ articles }: { articles: KnowledgeArticle[] }) {
 }
 
 function IntegrationsView({ remote }: { remote: RemoteSupportSession[] }) {
+  const [glpiStatus, setGlpiStatus] = useState("Consultando...");
+  const [rustdeskStatus, setRustdeskStatus] = useState(remote.length ? "Conectado" : "Listo para configurar");
+
+  async function refreshStatuses() {
+    const [glpiResponse, rustdeskResponse] = await Promise.all([fetch("/api/integrations/glpi/status"), fetch("/api/integrations/rustdesk")]);
+    const glpiPayload = (await glpiResponse.json()) as { data?: { configured?: boolean } };
+    const rustdeskPayload = (await rustdeskResponse.json()) as { data?: Array<{ status?: string }> };
+    setGlpiStatus(glpiPayload.data?.configured ? "Configurado" : "Pendiente de configuración");
+    setRustdeskStatus(rustdeskPayload.data?.some((item) => item.status === "Conectado") ? "Conectado" : "Listo para configurar");
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshStatuses(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const cards = [
-    ["GLPI", "Sincronización ITSM", "Pendiente de configuración"],
-    ["RustDesk", "Acceso remoto", remote.length ? "Conectado" : "Listo para configurar"],
+    ["GLPI", "Sincronización ITSM", glpiStatus],
+    ["RustDesk", "Acceso remoto", rustdeskStatus],
     ["Microsoft Entra ID", "Acceso corporativo", "Configuración requerida"],
     ["API Nexpertic", "Automatización", "Activa"],
     ["Correo", "Creación de tickets", "En preparación"],
     ["Webhooks", "Eventos operativos", "Disponible"],
   ];
-  return <><PageTitle title="Centro de aplicaciones" text="Conecta Nexpertic con las herramientas que ya utiliza tu operación."/><div className="nxIntegrationGrid">{cards.map(([name, category, status]) => <article className="nxIntegrationCard" key={name}><span className="nxAppLogo">{name.slice(0, 2)}</span><div><small>{category}</small><h2>{name}</h2></div><p>Integra datos, acciones y trazabilidad sin salir del service desk.</p><footer><span>{status}</span><button type="button">Configurar</button></footer></article>)}</div></>;
+  return <><PageTitle title="Centro de aplicaciones" text="Conecta Nexpertic con las herramientas que ya utiliza tu operación." action={<button className="nxPrimaryAction" onClick={() => void refreshStatuses()} type="button">Actualizar estados</button>}/><div className="nxIntegrationGrid">{cards.map(([name, category, status]) => <article className="nxIntegrationCard" key={name}><span className="nxAppLogo">{name.slice(0, 2)}</span><div><small>{category}</small><h2>{name}</h2></div><p>Integra datos, acciones y trazabilidad sin salir del service desk.</p><footer><span>{status}</span><button disabled={!['GLPI', 'RustDesk'].includes(name)} onClick={() => void refreshStatuses()} type="button">{['GLPI', 'RustDesk'].includes(name) ? "Actualizar" : "Próximamente"}</button></footer></article>)}</div></>;
 }
 
 function AiView({ tickets, articles }: { tickets: Ticket[]; articles: KnowledgeArticle[] }) {
