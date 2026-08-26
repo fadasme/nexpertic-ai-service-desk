@@ -3,6 +3,7 @@ import { can, requirePermission } from "@/lib/nexera/auth-store";
 import { createAuditEvent } from "@/lib/nexera/audit-store";
 import { suggestKnowledgeArticle } from "@/lib/nexera/knowledge-search";
 import { listKnowledgeArticles } from "@/lib/nexera/service";
+import { listAutomationRules } from "@/lib/nexera/automation-store";
 import { tenantIdFromRequest } from "@/lib/nexera/tenant-context";
 import type { CreateTicketInput, TicketPriority } from "@/lib/nexera/contracts";
 
@@ -34,12 +35,19 @@ export async function POST(request: Request) {
     : authorization.session.email;
 
   try {
-    const ticket = await createStoredTicket({
+    let ticket = await createStoredTicket({
       tenantId,
       description: String(body.description ?? ""),
       requester,
       source: body.source,
     });
+    const description = String(body.description ?? "").toLowerCase();
+    const matchedRules = (await listAutomationRules(tenantId)).filter((rule) => rule.enabled && description.includes(rule.matchText.toLowerCase()));
+    for (const rule of matchedRules) {
+      const next = await updateStoredTicket(ticket.id, rule.action === "Prioridad Alta" ? { priority: "Alta" } : { owner: "Mesa L1" }, tenantId);
+      if (next) ticket = next;
+      await createAuditEvent({ action: "Regla de automatización aplicada", actor: "Agente IA", detail: `${rule.name} · ${rule.action}.`, tenantId, ticketId: ticket.id });
+    }
     const knowledgeSuggestion = suggestKnowledgeArticle(listKnowledgeArticles(), String(body.description ?? ""));
 
     await createAuditEvent({
