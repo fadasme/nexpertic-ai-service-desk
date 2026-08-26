@@ -325,10 +325,36 @@ function AdminDetail({ selected, session }: { selected: string; session: Session
     setTenantMessage(response.ok ? "Configuración guardada correctamente." : payload.error ?? "No se pudo guardar la configuración.");
     if (response.ok && payload.data) setTenant(payload.data);
   }
+  if (selected === "Sesión y seguridad") {
+    return <AdminSessionSecurity session={session}/>;
+  }
   return <section className="nxAdminDetail">
     <div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / {selected === "Resumen de administración" ? "Inicio" : selected}</p><h2>{title}</h2><p>{description}</p></div><button className="nxPrimaryAction" type="button">Guardar cambios</button></div>
     {selected === "Resumen de administración" ? <div className="nxAdminCards"><article className="nxPanel"><span>Usuarios activos</span><strong>12</strong><small>2 administradores · 8 técnicos · 2 usuarios</small></article><article className="nxPanel"><span>Reglas activas</span><strong>8</strong><small>Automatizaciones ejecutándose</small></article><article className="nxPanel"><span>Integraciones</span><strong>3/6</strong><small>Conectadas y operativas</small></article><article className="nxPanel"><span>Última actividad</span><strong>Ahora</strong><small>{session.name} abrió el centro de administración</small></article></div> : <div className="nxPanel nxAdminContent">
       {selected === "Configuración de la cuenta" ? <form className="nxAdminForm" onSubmit={saveTenant}><h3>Configuración del tenant</h3>{tenant ? <><div className="nxFormGrid"><label>Nombre visible<input defaultValue={tenant.name} name="name"/></label><label>Región<input defaultValue={tenant.region} name="region"/></label></div><div className="nxToggleList"><label><span><b>Solicitar consentimiento remoto</b><small>RustDesk debe contar con autorización antes de conectar.</small></span><input defaultChecked={tenant.policies.requireRemoteConsent} name="requireRemoteConsent" type="checkbox"/></label><label><span><b>Requerir SSO</b><small>Obliga el acceso corporativo cuando OIDC está configurado.</small></span><input defaultChecked={tenant.policies.requireSso} name="requireSso" type="checkbox"/></label></div><button className="nxPrimaryAction" type="submit">Guardar configuración</button></> : <p className="nxAdminLoading">Cargando configuración del tenant...</p>}{tenantMessage && <p className="nxAdminMessage">{tenantMessage}</p>}</form> : selected === "Técnicos" ? <><h3>Técnicos y usuarios</h3>{usersLoading ? <p className="nxAdminLoading">Cargando usuarios del tenant...</p> : <div className="nxTableWrap"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Último acceso</th></tr></thead><tbody>{users.map((user) => <tr key={user.id}><td><b>{user.name}</b></td><td>{user.email}</td><td><select className="nxRoleSelect" value={user.role} onChange={(event) => void changeRole(user, event.target.value as UserRole)}><option>Usuario</option><option>Analista</option><option>Ejecutivo</option><option>Admin</option></select></td><td><span className="nxOnline">{user.status}</span></td><td>{user.lastAccessAt ? new Date(user.lastAccessAt).toLocaleString("es-CL") : "Sin acceso"}</td></tr>)}</tbody></table></div>}{usersMessage && <p className="nxAdminMessage">{usersMessage}</p>}</> : isAudit ? <><h3>Actividad reciente</h3><div className="nxTableWrap"><table><thead><tr><th>Actor</th><th>Acción</th><th>Fecha</th><th>Resultado</th></tr></thead><tbody><tr><td>{session.name}</td><td>Abrió {selected.toLowerCase()}</td><td>Ahora</td><td><span className="nxOnline">Registrado</span></td></tr><tr><td>Sistema</td><td>Sincronización de tickets</td><td>Hoy, 09:42</td><td><span className="nxOnline">Correcto</span></td></tr></tbody></table></div></> : isRoles ? <><h3>Roles configurados</h3>{usersLoading ? <p className="nxAdminLoading">Cargando usuarios del tenant...</p> : <div className="nxRoleList">{users.map((user) => <label key={user.id}><span><b>{user.name}</b><small>{user.email} · {user.role}</small></span><input checked={user.status === "Activo"} readOnly type="checkbox"/></label>)}</div>}{usersMessage && <p className="nxAdminMessage">{usersMessage}</p>}</> : <><h3>Configuración de {title.toLowerCase()}</h3><div className="nxFormGrid"><label>Nombre visible<input defaultValue={title}/></label><label>Estado<select defaultValue="Activo"><option>Activo</option><option>Pendiente</option><option>Deshabilitado</option></select></label><label className="wide">Descripción<textarea defaultValue={description}/></label></div><div className="nxAdminNotice"><span className="nxOnline">Listo para configurar</span><p>Los cambios de este módulo quedarán registrados en la auditoría administrativa.</p></div></>}
     </div>}
+  </section>;
+}
+
+function AdminSessionSecurity({ session }: { session: SessionUser }) {
+  const [pending, startTransition] = useTransition();
+
+  function lockSession() {
+    startTransition(async () => {
+      const response = await fetch("/api/auth/lock", { method: "POST" });
+      if (response.ok) window.location.href = "/signin?mode=unlock&returnTo=/";
+    });
+  }
+
+  function logout() {
+    startTransition(async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/signin";
+    });
+  }
+
+  return <section className="nxAdminDetail">
+    <div className="nxPanel nxAdminHero"><span className="nxAdminDetailIcon"><Icon name="patch"/></span><div><p className="nxEyebrow">Administración / Sesión y seguridad</p><h2>Protege tu acceso</h2><p>Consulta el estado de tu sesión y controla su cierre desde un solo lugar.</p></div></div>
+    <div className="nxPanel nxAdminContent nxSecurityPanel"><h3>Sesión actual</h3><p><b>{session.name}</b><br/>{session.email} · {session.role}<br/>Tenant: {session.tenant}</p><div className="nxAdminNotice"><span className="nxOnline">Sesión activa</span><SessionExpiryTicker className="warning" expiresAt={session.expiresAt}/><p>Al bloquearla, deberás volver a ingresar tus credenciales. Al cerrar sesión se eliminarán las cookies de acceso.</p></div><div className="nxTitleActions"><button disabled={pending} onClick={lockSession} type="button">Bloquear sesión</button><button className="nxPrimaryAction" disabled={pending} onClick={logout} type="button">Cerrar sesión</button></div></div>
   </section>;
 }
