@@ -152,11 +152,13 @@ export type Client = {
   email: string;
   status: "Activo" | "Pendiente";
   createdAt: string;
+  customFields?: Record<string, string>;
 };
 
 export type CreateClientInput = {
   name: string;
   email: string;
+  customFields?: Record<string, string>;
 };
 export type UpdateClientInput = Partial<CreateClientInput> & Pick<Client, "status">;
 
@@ -167,6 +169,7 @@ export type Device = {
   clientName: string;
   status: "Activo" | "Pendiente";
   createdAt: string;
+  customFields?: Record<string, string>;
 };
 
 export type CreateDeviceInput = {
@@ -183,9 +186,10 @@ export type Asset = {
   owner: string;
   status: "Activo" | "En revisión" | "Retirado";
   createdAt: string;
+  customFields?: Record<string, string>;
 };
 
-export type CreateAssetInput = Pick<Asset, "name" | "type" | "owner">;
+export type CreateAssetInput = Pick<Asset, "name" | "type" | "owner" | "customFields">;
 export type UpdateAssetInput = Partial<CreateAssetInput> & Pick<Asset, "status">;
 
 export type TenantConfig = {

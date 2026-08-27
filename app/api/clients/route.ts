@@ -11,9 +11,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const authorization = await requirePermission(request, "user:update");
   if (!authorization.allowed) return authorization.response;
-  const body = (await request.json().catch(() => ({}))) as { name?: unknown; email?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { name?: unknown; email?: unknown; customFields?: unknown };
   try {
-    const client = await createClient({ name: typeof body.name === "string" ? body.name : "", email: typeof body.email === "string" ? body.email : "" }, await tenantIdFromRequest(request));
+    const client = await createClient({ name: typeof body.name === "string" ? body.name : "", email: typeof body.email === "string" ? body.email : "", customFields: body.customFields && typeof body.customFields === "object" ? body.customFields as Record<string, string> : undefined }, await tenantIdFromRequest(request));
     return Response.json({ data: client }, { status: 201 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Could not create client" }, { status: 400 });
@@ -23,9 +23,9 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const authorization = await requirePermission(request, "user:update");
   if (!authorization.allowed) return authorization.response;
-  const body = (await request.json().catch(() => ({}))) as { id?: unknown; name?: unknown; email?: unknown; status?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { id?: unknown; name?: unknown; email?: unknown; status?: unknown; customFields?: unknown };
   if (typeof body.id !== "string") return Response.json({ error: "id is required" }, { status: 400 });
-  const client = await updateClient(body.id, { name: typeof body.name === "string" ? body.name.trim() : undefined, email: typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined, status: body.status === "Pendiente" ? "Pendiente" : "Activo" }, await tenantIdFromRequest(request));
+  const client = await updateClient(body.id, { name: typeof body.name === "string" ? body.name.trim() : undefined, email: typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined, status: body.status === "Pendiente" ? "Pendiente" : "Activo", customFields: body.customFields && typeof body.customFields === "object" ? body.customFields as Record<string, string> : undefined }, await tenantIdFromRequest(request));
   if (!client) return Response.json({ error: "Client not found" }, { status: 404 });
   return Response.json({ data: client });
 }

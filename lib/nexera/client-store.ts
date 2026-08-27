@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import type { Client, CreateClientInput, UpdateClientInput } from "./contracts";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
 
-type ClientRow = { id: string; tenant_id: string; name: string; email: string; status: Client["status"]; created_at: string };
+type ClientRow = { id: string; tenant_id: string; name: string; email: string; status: Client["status"]; created_at: string; custom_fields?: string | null };
 
 const memory = globalThis as typeof globalThis & { nexeraClients?: Client[] };
 
@@ -12,12 +12,13 @@ function getMemory() {
 }
 
 function map(row: ClientRow): Client {
-  return { id: row.id, tenantId: row.tenant_id, name: row.name, email: row.email, status: row.status, createdAt: row.created_at };
+  return { id: row.id, tenantId: row.tenant_id, name: row.name, email: row.email, status: row.status, createdAt: row.created_at, customFields: row.custom_fields ? JSON.parse(row.custom_fields) as Record<string, string> : undefined };
 }
 
 async function ensureTable() {
   if (!env.DB) return false;
-  await env.DB.prepare("create table if not exists clients (id text primary key, tenant_id text not null, name text not null, email text not null, status text not null, created_at text not null, unique(tenant_id, email))").run();
+  await env.DB.prepare("create table if not exists clients (id text primary key, tenant_id text not null, name text not null, email text not null, status text not null, created_at text not null, custom_fields text, unique(tenant_id, email))").run();
+  await env.DB.prepare("alter table clients add column custom_fields text").run().catch(() => undefined);
   return true;
 }
 
@@ -34,11 +35,11 @@ export async function listClients(tenantId = DEFAULT_TENANT_ID) {
 }
 
 export async function createClient(input: CreateClientInput, tenantId = DEFAULT_TENANT_ID) {
-  const client: Client = { id: `client-${crypto.randomUUID()}`, tenantId, name: input.name.trim(), email: input.email.trim().toLowerCase(), status: "Activo", createdAt: new Date().toISOString() };
+  const client: Client = { id: `client-${crypto.randomUUID()}`, tenantId, name: input.name.trim(), email: input.email.trim().toLowerCase(), status: "Activo", createdAt: new Date().toISOString(), customFields: input.customFields };
   if (!client.name || !client.email) throw new Error("name and email are required");
   try {
     if (await ensureTable()) {
-      await env.DB.prepare("insert into clients (id, tenant_id, name, email, status, created_at) values (?, ?, ?, ?, ?, ?)").bind(client.id, client.tenantId, client.name, client.email, client.status, client.createdAt).run();
+      await env.DB.prepare("insert into clients (id, tenant_id, name, email, status, created_at, custom_fields) values (?, ?, ?, ?, ?, ?, ?)").bind(client.id, client.tenantId, client.name, client.email, client.status, client.createdAt, client.customFields ? JSON.stringify(client.customFields) : null).run();
       return client;
     }
   } catch (error) {
@@ -56,7 +57,7 @@ export async function updateClient(id: string, input: UpdateClientInput, tenantI
       const current = await env.DB.prepare("select * from clients where id = ? and tenant_id = ?").bind(id, tenantId).first<ClientRow>();
       if (!current) return null;
       const next = { ...map(current), ...input };
-      await env.DB.prepare("update clients set name = ?, email = ?, status = ? where id = ? and tenant_id = ?").bind(next.name, next.email, next.status, id, tenantId).run();
+      await env.DB.prepare("update clients set name = ?, email = ?, status = ?, custom_fields = ? where id = ? and tenant_id = ?").bind(next.name, next.email, next.status, next.customFields ? JSON.stringify(next.customFields) : null, id, tenantId).run();
       return next;
     }
   } catch { /* Fall through to memory. */ }
