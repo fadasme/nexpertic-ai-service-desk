@@ -78,7 +78,10 @@ node scripts/db-apply.mjs --mode demo --database <d1-name-or-id> --local --execu
 
 El VPS usa `/var/www/nexpertic-ai-service-desk`, servicio
 `nexpertic-ai-service-desk.service`, puerto público `8081` e interno `127.0.0.1:3008`.
-El script actual `serve:vps` ejecuta el servidor de desarrollo de Vinext.
+`serve:vps` ejecuta el Worker compilado con Miniflare/workerd, sin Vite ni HMR,
+escuchando explícitamente en IPv4 local. Requiere un build previo.
+La base D1 local conserva su directorio e identificador. El runtime carga `.env`
+y da prioridad a las variables del servicio systemd.
 
 Antes de arrancar esta versión, detener el servicio y conciliar la SQLite local de
 Miniflare (archivo de datos bajo `.wrangler/state/v3/d1/`, excluyendo `metadata.sqlite`):

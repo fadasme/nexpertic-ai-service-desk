@@ -21,6 +21,10 @@ try {
       const result = await request(path, { headers: { 'x-nexera-role': 'Admin', 'x-nexera-tenant': 'tenant-nexera-pilot' } });
       check(`untrusted role denied: ${path}`, result.response.status === 401, result.response.status);
     }
+    for (const path of ['/@vite/client', '/@fs/var/www/nexpertic-ai-service-desk/package.json']) {
+      const result = await request(path);
+      check(`development source endpoint absent: ${path}`, result.response.status === 404, result.response.status);
+    }
     const demo = await request('/api/auth/session', {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ userId: 'admin-demo' }),
     });
