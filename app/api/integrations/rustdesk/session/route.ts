@@ -32,7 +32,8 @@ export async function POST(request: Request) {
   const authorization = await requirePermission(request, "rustdesk:session");
   if (!authorization.allowed) return authorization.response;
 
-  const body = await request.json().catch(() => ({}));
+  const parsed = await request.json().catch(() => null);
+  const body = (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
   const ticketId = typeof body.ticketId === "string" ? body.ticketId : "NX-DEMO";
   const tenantId = await tenantIdFromRequest(request);
   const ticketExists = (await listStoredTickets({ tenantId })).some((ticket) => ticket.id === ticketId);

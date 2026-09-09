@@ -81,7 +81,7 @@ export function getSecretPosture(): SecretPosture {
       label: "Credenciales GLPI",
       risk: glpi.configured ? "ok" : "warning",
     }),
-    item(demoCleanupPostureFromEnv(process.env)),
+    item(demoCleanupPostureFromEnv({ NEXERA_ALLOW_DEMO_CLEANUP: process.env.NEXERA_ALLOW_DEMO_CLEANUP })),
   ];
 
   const summary = {

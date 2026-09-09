@@ -46,17 +46,6 @@ function mapRow(row: SecurityEventRow): SecurityEvent {
   };
 }
 
-async function ensureSecuritySchema(db: D1Database) {
-  await db
-    .prepare("create table if not exists security_events (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', action text not null, at text not null, detail text not null, fingerprint text, severity text not null, source text not null, ticket_id text)")
-    .run();
-  await db
-    .prepare("alter table security_events add column tenant_id text not null default 'tenant-nexera-pilot'")
-    .run()
-    .catch(() => undefined);
-  await db.prepare("alter table security_events add column acknowledged_at text").run().catch(() => undefined);
-}
-
 export async function createSecurityEvent(input: CreateSecurityEventInput) {
   const event: SecurityEvent = {
     ...input,
@@ -73,7 +62,7 @@ export async function createSecurityEvent(input: CreateSecurityEventInput) {
   }
 
   try {
-    await ensureSecuritySchema(db);
+
     await db
       .prepare("insert into security_events (id, tenant_id, action, at, detail, fingerprint, severity, source, ticket_id, acknowledged_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .bind(event.id, event.tenantId ?? DEFAULT_TENANT_ID, event.action, event.at, event.detail, event.fingerprint ?? null, event.severity, event.source, event.ticketId ?? null, null)
@@ -89,7 +78,7 @@ export async function acknowledgeSecurityEvent(id: string, tenantId = DEFAULT_TE
   const acknowledgedAt = new Date().toISOString();
   const db = env.DB;
   if (db) {
-    try { await ensureSecuritySchema(db); const result = await db.prepare("update security_events set acknowledged_at = ? where id = ? and tenant_id = ?").bind(acknowledgedAt, id, tenantId).run(); return result.meta.changes ? acknowledgedAt : null; } catch { /* Fall through to memory. */ }
+    try {  const result = await db.prepare("update security_events set acknowledged_at = ? where id = ? and tenant_id = ?").bind(acknowledgedAt, id, tenantId).run(); return result.meta.changes ? acknowledgedAt : null; } catch { /* Fall through to memory. */ }
   }
   const event = getStore().events.find((item) => item.id === id && (item.tenantId ?? DEFAULT_TENANT_ID) === tenantId);
   if (!event) return null;
@@ -109,7 +98,7 @@ export async function listSecurityEvents(source?: SecurityEvent["source"], tenan
   }
 
   try {
-    await ensureSecuritySchema(db);
+
     const rows = source
       ? await db.prepare("select * from security_events where tenant_id = ? and source = ? order by at desc").bind(tenantId, source).all<SecurityEventRow>()
       : await db.prepare("select * from security_events where tenant_id = ? order by at desc").bind(tenantId).all<SecurityEventRow>();

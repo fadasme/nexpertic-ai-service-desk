@@ -1,4 +1,4 @@
-const baseUrl = process.env.NEXPERTIC_SMOKE_BASE_URL ?? "http://localhost:3000";
+const baseUrl = process.env.NEXPERTIC_SMOKE_BASE_URL ?? "http://localhost:3001";
 
 const checks = [];
 
@@ -13,7 +13,6 @@ async function json(path, options = {}) {
 }
 
 async function main() {
-  const adminHeaders = { "x-nexera-role": "Admin", "x-nexera-tenant": "tenant-nexera-pilot" };
   const analystHeaders = { "x-nexera-role": "Analista", "x-nexera-tenant": "tenant-nexera-pilot" };
   const userHeaders = { "x-nexera-role": "Usuario", "x-nexera-tenant": "tenant-nexera-pilot" };
   const wrongTenantHeaders = { "x-nexera-role": "Admin", "x-nexera-tenant": "tenant-acme-test" };

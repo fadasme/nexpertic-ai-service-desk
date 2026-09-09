@@ -1,7 +1,7 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState, useTransition } from "react";
-import type { Agent, Asset, AuditEvent, AutomationRule, CalendarSettings, Client, CustomField, Device, KnowledgeArticle, RemoteSupportSession, SecurityEvent, SessionUser, SlaConfig, TechnicianGroup, TenantConfig, Ticket, TicketSettings, TicketTemplate, UserAccount, UserRole } from "@/lib/nexera/contracts";
+import type { Asset, AuditEvent, AutomationRule, CalendarSettings, Client, CustomField, Device, KnowledgeArticle, RemoteSupportSession, SecurityEvent, SessionUser, SlaConfig, TechnicianGroup, TenantConfig, Ticket, TicketSettings, TicketTemplate, UserAccount, UserRole } from "@/lib/nexera/contracts";
 import { ServiceDeskConsole } from "./ServiceDeskConsole";
 import { SessionExpiryTicker } from "./SessionExpiryTicker";
 
@@ -195,7 +195,7 @@ function ClientsView({ clients, tickets }: { clients: string[]; tickets: Ticket[
       setDirectory(payload.data ?? []);
     }).catch((error: Error) => setMessage(error.message));
   }, []);
-  useEffect(() => { fetch("/api/settings/custom-fields").then((response) => response.json()).then((payload: { data?: CustomField[] }) => setCustomFields((payload.data ?? []).filter((field) => field.appliesTo === "Clientes"))).catch(() => undefined); }, []);
+  useEffect(() => { fetch("/api/settings/custom-fields").then((response) => response.json() as Promise<{ data?: CustomField[] }>).then((payload) => setCustomFields((payload.data ?? []).filter((field) => field.appliesTo === "Clientes"))).catch(() => undefined); }, []);
 
   async function saveClient(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -234,61 +234,6 @@ function ClientsView({ clients, tickets }: { clients: string[]; tickets: Ticket[
     <div className="nxToolbar"><label>Estado<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "Todos" | Client["status"])}><option>Todos</option><option>Activo</option><option>Pendiente</option></select></label><span>{rows.length} clientes visibles</span></div>
     <div className="nxPanel nxDataPanel">{message ? <p className="nxAdminMessage">{message}</p> : null}<div className="nxTableWrap"><table><thead><tr><th>Nombre</th><th>Tickets</th><th>Última categoría</th><th>Contacto</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{rows.map((client) => { const own = tickets.filter((ticket) => ticket.requester === client.name); const persisted = Boolean(client.tenantId); return <tr key={client.id}><td><span className="nxInitial">{client.name.slice(0, 1)}</span><b>{client.name}</b></td><td>{own.length}</td><td>{own[0]?.category ?? "General"}</td><td>{client.email || "Sin correo registrado"}</td><td><span className={client.status === "Activo" ? "nxOnline" : "nxPending"}>{client.status}</span></td><td>{persisted ? <><button onClick={() => editClient(client)} type="button">Editar</button> <button onClick={() => void removeClient(client.id)} type="button">Eliminar</button></> : <small>Desde tickets</small>}</td></tr>; })}</tbody></table></div>{rows.length === 0 && <EmptyState icon="users" title="No hay clientes para mostrar" text="Crea el primer cliente para comenzar."/>}</div>
   </>;
-}
-
-function DevicesView({ remote }: { remote: RemoteSupportSession[] }) {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState({ name: "", clientName: "", status: "Activo" as Device["status"] });
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    fetch("/api/agents")
-      .then(async (response) => {
-        const payload = (await response.json()) as { data?: Agent[]; error?: string };
-        if (!response.ok) throw new Error(payload.error ?? "No se pudieron cargar los agentes.");
-        setAgents(payload.data ?? []);
-      })
-      .catch((error: Error) => setMessage(error.message));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/devices").then(async (response) => {
-      const payload = (await response.json()) as { data?: Device[]; error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "No se pudieron cargar los dispositivos.");
-      setDevices(payload.data ?? []);
-    }).catch((error: Error) => setMessage(error.message));
-  }, []);
-
-  async function saveDevice(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const response = await fetch("/api/devices", { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editingId ? { id: editingId, ...draft } : draft) });
-    const payload = (await response.json()) as { data?: Device; error?: string };
-    if (!response.ok || !payload.data) { setMessage(payload.error ?? "No se pudo crear el dispositivo."); return; }
-    setDevices((current) => [...current, payload.data as Device].sort((left, right) => left.name.localeCompare(right.name)));
-    setDraft({ name: "", clientName: "", status: "Activo" });
-    setEditingId(null);
-    setShowForm(false);
-    setMessage(editingId ? "Dispositivo actualizado correctamente." : "Dispositivo creado correctamente.");
-  }
-
-  async function removeDevice(id: string) {
-    if (!window.confirm("¿Eliminar este dispositivo?")) return;
-    const response = await fetch(`/api/devices?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-    if (!response.ok) { setMessage("No se pudo eliminar el dispositivo."); return; }
-    setDevices((current) => current.filter((item) => item.id !== id));
-    setMessage("Dispositivo eliminado correctamente.");
-  }
-
-  function editDevice(device: Device) {
-    setEditingId(device.id);
-    setDraft({ name: device.name, clientName: device.clientName, status: device.status });
-    setShowForm(true);
-  }
-
-  return <><PageTitle title="Dispositivos" text="Inventario técnico y acceso remoto desde una sola vista." action={<button className="nxPrimaryAction" onClick={() => setShowForm((value) => !value)} type="button">{showForm ? "Cerrar" : "+ Nuevo dispositivo"}</button>}/>{showForm ? <form className="nxPanel nxClientForm" onSubmit={saveDevice}><h2>Nuevo dispositivo</h2><div className="nxFormGrid"><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })}/></label><label>Cliente<input required value={draft.clientName} onChange={(event) => setDraft({ ...draft, clientName: event.target.value })}/></label></div><button className="nxPrimaryAction" type="submit">Guardar dispositivo</button></form> : null}<div className="nxToolbar"><button type="button">Clientes</button><button type="button">Favoritos</button><button type="button">Filtros</button></div><div className="nxPanel nxDataPanel"><h2>Inventario registrado</h2>{devices.length ? <div className="nxTableWrap"><table><thead><tr><th>Dispositivo</th><th>Cliente</th><th>Estado</th><th>Creado</th></tr></thead><tbody>{devices.map((device) => <tr key={device.id}><td><b>{device.name}</b></td><td>{device.clientName}</td><td><span className="nxOnline">{device.status}</span></td><td>{new Date(device.createdAt).toLocaleDateString("es-CL")}</td></tr>)}</tbody></table></div> : <EmptyState icon="monitor" title="Todavía no hay dispositivos registrados" text="Crea el primero para comenzar el inventario."/>}</div><div className="nxPanel nxDataPanel"><h2>Sesiones remotas</h2><div className="nxTableWrap"><table><thead><tr><th>Dispositivo</th><th>Disponibilidad</th><th>Cliente</th><th>Alertas</th><th>Acceso remoto</th></tr></thead><tbody>{remote.slice(0, 8).map((item) => <tr key={item.id}><td><b>{item.code}</b><small>{item.provider}</small></td><td><span className={item.status === "Conectado" ? "nxOnline" : "nxPending"}>{item.status}</span></td><td>{item.ticketId}</td><td>{item.consentGrantedAt ? 0 : 1}</td><td><a href={item.launchUrl}>Conectar</a></td></tr>)}</tbody></table></div>{remote.length === 0 && <EmptyState icon="monitor" title="Todavía no hay sesiones remotas" text="Prepara una sesión desde un ticket para comenzar."/>}</div><div className="nxPanel nxDataPanel"><h2>Agentes Nexpertic</h2>{message ? <p className="nxAdminMessage">{message}</p> : <div className="nxTableWrap"><table><thead><tr><th>Agente</th><th>Objetivo</th><th>Herramientas</th><th>Score</th><th>Revisión humana</th></tr></thead><tbody>{agents.map((agent) => <tr key={agent.id}><td><b>{agent.name}</b></td><td>{agent.goal}</td><td>{agent.tools.length}</td><td>{agent.score}</td><td>{agent.humanApprovalRequired ? "Requerida" : "No"}</td></tr>)}</tbody></table></div>}</div></>;
 }
 
 function DevicesCrudView({ remote }: { remote: RemoteSupportSession[] }) {
@@ -390,14 +335,10 @@ function AssetsCrudView({ remote }: { remote: RemoteSupportSession[] }) {
   const [draft, setDraft] = useState({ name: "", type: "Estación" as Asset["type"], owner: "", status: "Activo" as Asset["status"] });
   const [message, setMessage] = useState("");
   useEffect(() => { fetch("/api/assets").then(async (response) => { const payload = (await response.json()) as { data?: Asset[]; error?: string }; if (!response.ok) throw new Error(payload.error ?? "No se pudieron cargar los activos."); setAssets(payload.data ?? []); }).catch((error: Error) => setMessage(error.message)); }, []);
-  useEffect(() => { fetch("/api/settings/custom-fields").then((response) => response.json()).then((payload: { data?: CustomField[] }) => setCustomFields((payload.data ?? []).filter((field) => field.appliesTo === "Activos"))).catch(() => undefined); }, []);
+  useEffect(() => { fetch("/api/settings/custom-fields").then((response) => response.json() as Promise<{ data?: CustomField[] }>).then((payload) => setCustomFields((payload.data ?? []).filter((field) => field.appliesTo === "Activos"))).catch(() => undefined); }, []);
   async function save(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); const response = await fetch("/api/assets", { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editingId ? { id: editingId, ...draft, customFields: customValues } : { ...draft, customFields: customValues }) }); const payload = (await response.json()) as { data?: Asset; error?: string }; if (!response.ok || !payload.data) { setMessage(payload.error ?? "No se pudo guardar el activo."); return; } setAssets((current) => (editingId ? current.map((item) => item.id === editingId ? payload.data as Asset : item) : [...current, payload.data as Asset]).sort((left, right) => left.name.localeCompare(right.name))); setEditingId(null); setShowForm(false); setDraft({ name: "", type: "Estación", owner: "", status: "Activo" }); setCustomValues({}); setMessage("Activo guardado correctamente."); }
   async function remove(id: string) { if (!window.confirm("¿Eliminar este activo?")) return; const response = await fetch(`/api/assets?id=${encodeURIComponent(id)}`, { method: "DELETE" }); if (!response.ok) { setMessage("No se pudo eliminar el activo."); return; } setAssets((current) => current.filter((item) => item.id !== id)); setMessage("Activo eliminado correctamente."); }
   return <><PageTitle title="Inventario de activos" text="Activos y sesiones técnicas vinculadas al tenant." action={<button className="nxPrimaryAction" onClick={() => { setEditingId(null); setDraft({ name: "", type: "Estación", owner: "", status: "Activo" }); setCustomValues({}); setShowForm((value) => !value); }} type="button">{showForm ? "Cerrar" : "+ Nuevo activo"}</button>} />{showForm ? <form className="nxPanel nxClientForm" onSubmit={save}><h2>{editingId ? "Editar activo" : "Nuevo activo"}</h2><div className="nxFormGrid"><label>Nombre<input required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label><label>Responsable<input required value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} /></label><label>Tipo<select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as Asset["type"] })}><option>Estación</option><option>Servidor</option><option>Red</option><option>Licencia</option></select></label><label>Estado<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as Asset["status"] })}><option>Activo</option><option>En revisión</option><option>Retirado</option></select></label>{customFields.map((field) => <label key={field.id}>{field.name}{field.required ? " *" : ""}<input required={field.required} type={field.type === "Número" ? "number" : "text"} value={customValues[field.id] ?? ""} onChange={(event) => setCustomValues((current) => ({ ...current, [field.id]: event.target.value }))} /></label>)}</div><button className="nxPrimaryAction" type="submit">{editingId ? "Actualizar activo" : "Guardar activo"}</button></form> : null}<div className="nxPanel nxDataPanel">{message ? <p className="nxAdminMessage">{message}</p> : null}<div className="nxTableWrap"><table><thead><tr><th>Activo</th><th>Tipo</th><th>Responsable</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>{assets.map((asset) => <tr key={asset.id}><td><b>{asset.name}</b></td><td>{asset.type}</td><td>{asset.owner}</td><td><span className={asset.status === "Activo" ? "nxOnline" : "nxPending"}>{asset.status}</span></td><td>{new Date(asset.createdAt).toLocaleDateString("es-CL")}</td><td><button onClick={() => { setEditingId(asset.id); setDraft({ name: asset.name, type: asset.type, owner: asset.owner, status: asset.status }); setCustomValues(asset.customFields ?? {}); setShowForm(true); }} type="button">Editar</button> <button onClick={() => void remove(asset.id)} type="button">Eliminar</button></td></tr>)}</tbody></table></div>{assets.length === 0 && <EmptyState icon="layers" title="Conoce tu inventario de activos" text="Registra servidores, estaciones, redes y licencias para comenzar." />}</div><div className="nxPanel nxDataPanel"><h2>Sesiones remotas</h2><div className="nxTableWrap"><table><thead><tr><th>Activo</th><th>Estado</th><th>Ticket</th><th>Acceso</th></tr></thead><tbody>{remote.map((item) => <tr key={item.id}><td><b>{item.code}</b></td><td><span className={item.status === "Conectado" ? "nxOnline" : "nxPending"}>{item.status}</span></td><td>{item.ticketId}</td><td><a href={item.launchUrl}>Conectar</a></td></tr>)}</tbody></table></div>{remote.length === 0 && <EmptyState icon="monitor" title="Sin sesiones remotas" text="Prepara una sesión desde un ticket para comenzar." />}</div></>;
-}
-
-function AssetsView({ remote }: { remote: RemoteSupportSession[] }) {
-  return <><PageTitle title="Inventario de activos" text="Activos y sesiones técnicas vinculadas al tenant." action={<button className="nxPrimaryAction" type="button">+ Nuevo activo</button>}/><div className="nxPanel nxDataPanel"><div className="nxTableWrap"><table><thead><tr><th>Activo</th><th>Tipo</th><th>Ticket asociado</th><th>Estado</th><th>Garantía</th></tr></thead><tbody>{remote.map((item) => <tr key={item.id}><td><b>{item.code}</b></td><td>Estación remota</td><td>{item.ticketId}</td><td>{item.status}</td><td>{item.expiresInMinutes} min</td></tr>)}</tbody></table></div>{remote.length === 0 && <EmptyState icon="layers" title="Conoce tu inventario de activos" text="Los dispositivos y servidores aparecerán cuando instales el primer agente."/>}</div></>;
 }
 
 function NetworksView({ tickets }: { tickets: Ticket[] }) {
@@ -422,6 +363,7 @@ function ReportsView({ tickets, events }: { tickets: Ticket[]; events: AuditEven
 }
 
 function KnowledgeView({ articles }: { articles: KnowledgeArticle[] }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [items, setItems] = useState(articles);
   const [showForm, setShowForm] = useState(false);
   const [draft, setDraft] = useState({ title: "", domain: "", summary: "" });

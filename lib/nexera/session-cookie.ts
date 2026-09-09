@@ -18,7 +18,7 @@ function base64Url(bytes: ArrayBuffer) {
 }
 
 function base64UrlJson(value: unknown) {
-  return base64Url(textEncoder.encode(JSON.stringify(value)));
+  return base64Url(textEncoder.encode(JSON.stringify(value)).buffer);
 }
 
 function decodeBase64UrlJson<T>(value: string) {
@@ -77,8 +77,8 @@ export async function verifySessionCookie(value?: string | null) {
   const decoded = decodeBase64UrlJson<SessionUser & { exp: number }>(payload);
   if (Date.now() > decoded.exp) return null;
 
-  const { exp: _exp, ...session } = decoded;
-  return { ...session, expiresAt: new Date(decoded.exp).toISOString() };
+  const { exp, ...session } = decoded;
+  return { ...session, expiresAt: new Date(exp).toISOString() };
 }
 
 type SessionLock = {
@@ -117,8 +117,7 @@ export async function verifySessionLockCookie(value?: string | null) {
   const decoded = decodeBase64UrlJson<SessionLock & { exp: number }>(payload);
   if (Date.now() > decoded.exp) return null;
 
-  const { exp: _exp, ...lock } = decoded;
-  return lock;
+  return { email: decoded.email, id: decoded.id, lockedAt: decoded.lockedAt };
 }
 
 export function buildSessionSetCookie(value: string) {

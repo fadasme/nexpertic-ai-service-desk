@@ -11,7 +11,7 @@ type SessionExpiryTickerProps = {
 };
 
 export function SessionExpiryTicker({ className, expiresAt, mode = "badge", logoutUrl = "/api/auth/logout", onExpired }: SessionExpiryTickerProps) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
     if (!expiresAt) return;
@@ -21,7 +21,7 @@ export function SessionExpiryTicker({ className, expiresAt, mode = "badge", logo
   }, [expiresAt]);
 
   const state = useMemo(() => {
-    if (!expiresAt) return null;
+    if (!expiresAt || now === null) return null;
 
     const expiresAtMs = new Date(expiresAt).getTime();
     const diffMs = expiresAtMs - now;

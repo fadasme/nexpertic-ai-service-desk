@@ -28,7 +28,7 @@ export async function verifyConsentToken(signedToken: string) {
   const parts = signedToken.split(".");
 
   if (parts[0] === "v2") {
-    const [_version, rawToken, tenantId, expiresAtMs, signature] = parts;
+    const [, rawToken, tenantId, expiresAtMs, signature] = parts;
     if (!rawToken || !tenantId || !expiresAtMs || !signature) return null;
 
     const expected = await hmac(`v2.${rawToken}.${tenantId}.${expiresAtMs}`);

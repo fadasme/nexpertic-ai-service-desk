@@ -15,16 +15,11 @@ function map(row: ClientRow): Client {
   return { id: row.id, tenantId: row.tenant_id, name: row.name, email: row.email, status: row.status, createdAt: row.created_at, customFields: row.custom_fields ? JSON.parse(row.custom_fields) as Record<string, string> : undefined };
 }
 
-async function ensureTable() {
-  if (!env.DB) return false;
-  await env.DB.prepare("create table if not exists clients (id text primary key, tenant_id text not null, name text not null, email text not null, status text not null, created_at text not null, custom_fields text, unique(tenant_id, email))").run();
-  await env.DB.prepare("alter table clients add column custom_fields text").run().catch(() => undefined);
-  return true;
-}
+function hasDatabase() { return Boolean(env.DB); }
 
 export async function listClients(tenantId = DEFAULT_TENANT_ID) {
   try {
-    if (await ensureTable()) {
+    if (hasDatabase()) {
       const rows = await env.DB.prepare("select * from clients where tenant_id = ? order by name").bind(tenantId).all<ClientRow>();
       return rows.results.map(map);
     }
@@ -38,7 +33,7 @@ export async function createClient(input: CreateClientInput, tenantId = DEFAULT_
   const client: Client = { id: `client-${crypto.randomUUID()}`, tenantId, name: input.name.trim(), email: input.email.trim().toLowerCase(), status: "Activo", createdAt: new Date().toISOString(), customFields: input.customFields };
   if (!client.name || !client.email) throw new Error("name and email are required");
   try {
-    if (await ensureTable()) {
+    if (hasDatabase()) {
       await env.DB.prepare("insert into clients (id, tenant_id, name, email, status, created_at, custom_fields) values (?, ?, ?, ?, ?, ?, ?)").bind(client.id, client.tenantId, client.name, client.email, client.status, client.createdAt, client.customFields ? JSON.stringify(client.customFields) : null).run();
       return client;
     }
@@ -53,7 +48,7 @@ export async function createClient(input: CreateClientInput, tenantId = DEFAULT_
 
 export async function updateClient(id: string, input: UpdateClientInput, tenantId = DEFAULT_TENANT_ID) {
   try {
-    if (await ensureTable()) {
+    if (hasDatabase()) {
       const current = await env.DB.prepare("select * from clients where id = ? and tenant_id = ?").bind(id, tenantId).first<ClientRow>();
       if (!current) return null;
       const next = { ...map(current), ...input };
@@ -70,7 +65,7 @@ export async function updateClient(id: string, input: UpdateClientInput, tenantI
 
 export async function deleteClient(id: string, tenantId = DEFAULT_TENANT_ID) {
   try {
-    if (await ensureTable()) return Boolean((await env.DB.prepare("delete from clients where id = ? and tenant_id = ?").bind(id, tenantId).run()).meta.changes);
+    if (hasDatabase()) return Boolean((await env.DB.prepare("delete from clients where id = ? and tenant_id = ?").bind(id, tenantId).run()).meta.changes);
   } catch { /* Fall through to memory. */ }
   const store = getMemory();
   const before = store.length;

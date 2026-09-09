@@ -518,58 +518,7 @@ function mapTenantConfigRow(row: TenantConfigRow): TenantConfig {
   };
 }
 
-async function ensureD1Schema(db: D1Database) {
-  await db.batch([
-    db.prepare("create table if not exists schema_migrations (id text primary key, applied_at text not null)"),
-    db.prepare("create table if not exists tickets (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', external_ref text not null, title text not null, requester text not null, priority text not null, status text not null, owner text not null, category text not null, confidence integer not null, ai_summary text not null, sla text not null, source text not null, created_at text not null, custom_fields text)"),
-    db.prepare("create table if not exists audit_events (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', ticket_id text not null references tickets(id), actor text not null, action text not null, detail text not null, at text not null)"),
-    db.prepare("create table if not exists remote_support_sessions (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', ticket_id text not null references tickets(id), provider text not null, code text not null, status text not null, expires_in_minutes integer not null, launch_url text not null, created_at text not null, consent_expires_at text, consent_granted_at text, consent_rejected_at text, consent_token text)"),
-    db.prepare("create table if not exists users (id text primary key, tenant_id text not null default 'tenant-nexera-pilot', name text not null, email text not null unique, role text not null, tenant text not null, status text not null, last_access_at text)"),
-    db.prepare("create table if not exists tenants (id text primary key, name text not null, slug text not null unique, status text not null, region text not null, glpi_enabled integer not null, oidc_enabled integer not null, rustdesk_enabled integer not null, demo_data_allowed integer not null, require_remote_consent integer not null, require_sso integer not null, created_at text not null)"),
-  ]);
-  await db.prepare("alter table tickets add column custom_fields text").run().catch(() => undefined);
-
-  await db
-    .prepare("insert into schema_migrations (id, applied_at) values ('001-initial-schema', '2026-07-23T00:00:00.000Z') on conflict(id) do nothing")
-    .run()
-    .catch(() => undefined);
-
-  await db
-    .prepare("alter table tickets add column tenant_id text not null default 'tenant-nexera-pilot'")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table audit_events add column tenant_id text not null default 'tenant-nexera-pilot'")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table remote_support_sessions add column tenant_id text not null default 'tenant-nexera-pilot'")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table users add column tenant_id text not null default 'tenant-nexera-pilot'")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table remote_support_sessions add column consent_expires_at text")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table remote_support_sessions add column consent_granted_at text")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table remote_support_sessions add column consent_rejected_at text")
-    .run()
-    .catch(() => undefined);
-  await db
-    .prepare("alter table remote_support_sessions add column consent_token text")
-    .run()
-    .catch(() => undefined);
-}
-
 async function seedD1IfEmpty(db: D1Database) {
-  await ensureD1Schema(db);
   const seedDemo = shouldSeedDemoData();
   const count = await db.prepare("select count(*) as total from tickets").first<{ total: number }>();
   const tenantCount = await db.prepare("select count(*) as total from tenants").first<{ total: number }>();
@@ -882,8 +831,7 @@ export async function getPersistenceSchemaStatus(): Promise<PersistenceSchemaSta
   }
 
   try {
-    await ensureD1Schema(db);
-    const rows = await db.prepare("select id from schema_migrations order by applied_at desc").all<{ id: string }>();
+      const rows = await db.prepare("select id from schema_migrations order by applied_at desc").all<{ id: string }>();
     return persistenceSchemaStatusFromRows(rows.results);
   } catch {
     return {

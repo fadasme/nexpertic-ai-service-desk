@@ -1,4 +1,4 @@
-const baseUrl = process.env.NEXPERTIC_E2E_BASE_URL ?? "http://localhost:3000";
+const baseUrl = process.env.NEXPERTIC_E2E_BASE_URL ?? "http://localhost:3001";
 const tenantId = "tenant-nexera-pilot";
 
 const checks = [];

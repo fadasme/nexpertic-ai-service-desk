@@ -1,10 +1,29 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "migrations": [
     {
-      "id": "001-initial-schema",
-      "file": "001-initial-schema.sql",
-      "description": "Initial Nexpertic AI Service Desk D1 schema for schema tracking, tickets, audit, remote support, security events, users and tenants."
+      "id": "0000_bright_slapstick",
+      "file": "../../../drizzle/0000_bright_slapstick.sql"
+    },
+    {
+      "id": "0001_natural_annihilus",
+      "file": "../../../drizzle/0001_natural_annihilus.sql"
+    },
+    {
+      "id": "0002_boring_boom_boom",
+      "file": "../../../drizzle/0002_boring_boom_boom.sql"
+    },
+    {
+      "id": "0003_adorable_colonel_america",
+      "file": "../../../drizzle/0003_adorable_colonel_america.sql"
+    },
+    {
+      "id": "0004_shiny_leopardon",
+      "file": "../../../drizzle/0004_shiny_leopardon.sql"
+    },
+    {
+      "id": "0005_abnormal_the_captain",
+      "file": "../../../drizzle/0005_abnormal_the_captain.sql"
     }
   ],
   "seeds": [

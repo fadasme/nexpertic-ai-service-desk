@@ -15,7 +15,7 @@ function runPlan(args) {
 test("pilot plan includes schema and baseline only", () => {
   const output = runPlan(["--mode", "pilot"]);
 
-  assert.match(output, /001-initial-schema\.sql/);
+  assert.match(output, /0000_bright_slapstick\.sql/);
   assert.match(output, /001-pilot-baseline\.sql/);
   assert.doesNotMatch(output, /002-demo-data\.sql/);
   assert.match(output, /Dry run only/);
@@ -24,7 +24,7 @@ test("pilot plan includes schema and baseline only", () => {
 test("demo plan includes optional demo seed", () => {
   const output = runPlan(["--mode", "demo", "--local"]);
 
-  assert.match(output, /001-initial-schema\.sql/);
+  assert.match(output, /0000_bright_slapstick\.sql/);
   assert.match(output, /001-pilot-baseline\.sql/);
   assert.match(output, /002-demo-data\.sql/);
   assert.match(output, /--local/);

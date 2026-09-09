@@ -10,14 +10,15 @@ const demoSeedUrl = new URL("lib/nexera/persistence/seeds/002-demo-data.sql", ro
 
 const manifest = JSON.parse(await readFile(manifestUrl, "utf8"));
 const sql = await readFile(schemaUrl, "utf8");
+const journal = JSON.parse(await readFile(new URL("drizzle/meta/_journal.json", root), "utf8"));
 const drizzleSchema = await readFile(drizzleSchemaUrl, "utf8");
 const baselineSeed = await readFile(baselineSeedUrl, "utf8");
 const demoSeed = await readFile(demoSeedUrl, "utf8");
 
-assert.equal(manifest.schemaVersion, 1);
+assert.equal(manifest.schemaVersion, 2);
 assert.deepEqual(
   manifest.migrations.map((migration) => migration.file),
-  ["001-initial-schema.sql"],
+  journal.entries.map((entry) => `../../../drizzle/${entry.tag}.sql`),
 );
 assert.deepEqual(
   manifest.seeds.map((seed) => seed.file),
@@ -69,4 +70,15 @@ for (const requiredDemoFragment of ["NX-1042", "NX-1041", "NX-1039", "usr-demo",
   assert.ok(demoSeed.includes(requiredDemoFragment), `Missing demo seed fragment: ${requiredDemoFragment}`);
 }
 
-console.log("D1 migration manifest and Drizzle schema are aligned.");
+const { referenceDatabase } = await import("./migrate-sqlite.mjs");
+const reference = referenceDatabase();
+const tables = reference.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all();
+const declaredTables = [...drizzleSchema.matchAll(/sqliteTable\("([^"]+)"/g)].map((match) => match[1]).sort();
+assert.deepEqual(tables.map((row) => row.name).sort(), declaredTables);
+const snapshot = JSON.parse(await readFile(new URL(`drizzle/meta/${String(journal.entries.at(-1).idx).padStart(4, "0")}_snapshot.json`, root), "utf8"));
+for (const table of tables) {
+  const columns = reference.prepare(`PRAGMA table_info("${table.name}")`).all();
+  assert.deepEqual(columns.map((row) => row.name).sort(), Object.keys(snapshot.tables[table.name].columns).sort());
+}
+reference.close();
+console.log(`D1 migrations execute successfully: ${tables.length} tables aligned with the versioned snapshot.`);

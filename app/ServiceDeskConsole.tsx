@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { suggestKnowledgeArticle } from "@/lib/nexera/knowledge-search";
 import { formatUtcTime } from "@/lib/nexera/time-format";
-import { getTicketWorkflowSteps, suggestNextTicketStep } from "@/lib/nexera/ticket-workflow";
+import { type TicketWorkflowStep, getTicketWorkflowSteps, suggestNextTicketStep } from "@/lib/nexera/ticket-workflow";
 import type { AuditEvent, CreateAuditEventInput, CreateTicketInput, CustomField, KnowledgeArticle, RemoteSupportSession, SessionUser, Ticket, TicketPriority, TicketStatus, TicketTemplate, UpdateTicketInput } from "@/lib/nexera/contracts";
 
 type ChatMessage = {
@@ -124,7 +124,7 @@ function classifyTicketDescription(description: string): TicketClassification | 
   return { action, category, confidence, isEndpoint, isIdentity, isSecurity, isVpn, priority, summary };
 }
 
-function inferTicket(description: string, count: number, overridePriority?: TicketPriority) {
+function inferTicket(description: string, count: number, overridePriority?: TicketPriority): Ticket {
   const classification = classifyTicketDescription(description);
   const isIdentity = Boolean(classification?.isIdentity);
   const isVpn = Boolean(classification?.isVpn);
@@ -353,25 +353,9 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     }).catch(() => undefined);
   }, []);
 
-  useEffect(() => {
-    if (draftPriority === "Sugerida") {
-      setDraftPriority(ticketSignal?.priority ?? "Media");
-    }
-  }, [draftPriority, ticketSignal?.priority]);
-
-  useEffect(() => {
-    if (!draft.trim() || !ticketSignal || actionBusy) return;
-
-    setMessages((current) => {
-      const lastMessage = current[current.length - 1];
-      const autoDraftMessage = `Borrador automatico: ${ticketSignal.category} · ${ticketSignal.action}.`;
-      if (lastMessage?.author === "agent" && lastMessage.text === autoDraftMessage) {
-        return current;
-      }
-
-      return [...current, agentMessage(autoDraftMessage)];
-    });
-  }, [actionBusy, draft, ticketSignal]);
+  const visibleMessages = draft.trim() && ticketSignal && !actionBusy
+    ? [...messages, agentMessage(`Borrador automatico: ${ticketSignal.category} · ${ticketSignal.action}.`)]
+    : messages;
 
   const filteredTickets = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -651,7 +635,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
 
   async function appendAudit(ticketId: string, actor: AuditEvent["actor"], action: string, detail: string) {
     const fallbackEvent: AuditEvent = {
-      id: `audit-${ticketId}-${Date.now()}`,
+      id: `audit-${ticketId}-${crypto.randomUUID()}`,
       ticketId,
       actor,
       action,
@@ -694,7 +678,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       source: "chat",
       customFields: customValues,
     };
-    let ticket = inferTicket(description, tickets.length, effectivePriority);
+    let ticket: Ticket = inferTicket(description, tickets.length, effectivePriority);
     let storedRemotely = false;
 
     setMessages((current) => [
@@ -971,7 +955,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
       setRemoteSessions((current) => mergeRemoteSession(current, supportSession));
       void appendAudit(
         selectedTicket.id,
-        "Soporte remoto",
+        "RustDesk",
         "Sesión remota preparada",
         `Invitacion ${supportSession.code} preparada para ${selectedTicket.requester}. Requiere consentimiento del usuario antes de conectar.`,
       );
@@ -987,13 +971,13 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
   async function sendRemoteInvite() {
     if (!remoteSession) return;
 
-    let updatedSession: RemoteSupportSession = { ...remoteSession, status: "Invitación enviada" };
+    let updatedSession: RemoteSupportSession = { ...remoteSession, status: "Invitacion enviada" };
 
     try {
       setTicketAction({ kind: "remote", label: "Enviando invitación" });
       setNotice({ kind: "warning", text: `Enviando invitación de soporte remoto ${remoteSession.code}...` });
       const response = await fetch("/api/integrations/rustdesk/session", {
-        body: JSON.stringify({ id: remoteSession.id, status: "Invitación enviada" }),
+        body: JSON.stringify({ id: remoteSession.id, status: "Invitacion enviada" }),
         headers: { "content-type": "application/json", "x-nexera-role": session.role },
         method: "PATCH",
       });
@@ -1020,7 +1004,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
         text: `Invitacion Soporte remoto ${updatedSession.code} enviada al usuario. Expira en ${updatedSession.expiresInMinutes} minutos.`,
       },
     ]);
-    void appendAudit(updatedSession.ticketId, "Soporte remoto", "Invitación enviada", `Codigo ${updatedSession.code}. Esperando consentimiento.`);
+    void appendAudit(updatedSession.ticketId, "RustDesk", "Invitación enviada", `Codigo ${updatedSession.code}. Esperando consentimiento.`);
     setNotice({ kind: "success", text: `Invitacion ${updatedSession.code} enviada.` });
     setTicketAction({ kind: "idle" });
   }
@@ -1088,7 +1072,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
     }
 
     setRemoteSessions((current) => mergeRemoteSession(current, updatedSession));
-    void appendAudit(updatedSession.ticketId, "Soporte remoto", "Sesión remota conectada", `Conexion autorizada con codigo ${updatedSession.code}.`);
+    void appendAudit(updatedSession.ticketId, "RustDesk", "Sesión remota conectada", `Conexion autorizada con codigo ${updatedSession.code}.`);
     setNotice({ kind: "success", text: `Sesion ${updatedSession.code} conectada.` });
     setTicketAction({ kind: "idle" });
   }
@@ -1518,7 +1502,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
               <strong>{selectedTicket?.id ?? "Sin seleccionar"}</strong>
               <small>{actionBusy ? `${ticketProgressStep} · ${actionLabel}` : "Flujo listo para nueva solicitud"}</small>
             </div>
-            {messages.map((message, index) => (
+            {visibleMessages.map((message, index) => (
               <p className={message.author === "user" ? "userBubble" : ""} key={`${message.author}-${index}`}>{message.text}</p>
             ))}
           </section>
@@ -1532,7 +1516,7 @@ export function ServiceDeskConsole({ initialAuditEvents, initialKnowledgeArticle
                 <span>{ticketSignal ? "IA" : "Contexto"}</span>
                 <strong>{ticketSignal ? `Categoria ${ticketSignal.category}` : "Agrega contexto para clasificar"}</strong>
               </div>
-              <div className={ticketDraftPriority !== "Sugerida" ? "ready" : "pending"}>
+              <div className="ready">
                 <span>{ticketDraftPriority}</span>
                 <strong>{ticketPriorityMode === "Automatica" ? "Prioridad sugerida" : "Prioridad manual"}</strong>
               </div>

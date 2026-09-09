@@ -1,4 +1,4 @@
-import { createStoredTicket, listStoredTickets } from "@/lib/nexera/ticket-store";
+import { updateStoredTicket, createStoredTicket, listStoredTickets } from "@/lib/nexera/ticket-store";
 import { can, requirePermission } from "@/lib/nexera/auth-store";
 import { createAuditEvent } from "@/lib/nexera/audit-store";
 import { suggestKnowledgeArticle } from "@/lib/nexera/knowledge-search";

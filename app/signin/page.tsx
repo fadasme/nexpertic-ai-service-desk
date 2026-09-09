@@ -10,6 +10,7 @@ import { SigninPanel } from "../SigninPanel";
 type SigninPageProps = {
   searchParams: Promise<{
     returnTo?: string;
+    mode?: string;
   }>;
 };
 

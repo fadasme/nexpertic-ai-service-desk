@@ -8,7 +8,8 @@ export async function POST(request: Request) {
   const authorization = await requirePermission(request, "ticket:sync-glpi");
   if (!authorization.allowed) return authorization.response;
 
-  const body = await request.json().catch(() => ({}));
+  const parsed = await request.json().catch(() => null);
+  const body = (parsed && typeof parsed === "object" ? parsed : {}) as Record<string, unknown>;
   const ticketId = typeof body.ticketId === "string" ? body.ticketId : "";
   const tenantId = await tenantIdFromRequest(request);
   const ticket = (await listStoredTickets({ tenantId })).find((item) => item.id === ticketId);

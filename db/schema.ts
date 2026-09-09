@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const schemaMigrations = sqliteTable("schema_migrations", {
   id: text("id").primaryKey(),
@@ -8,6 +8,7 @@ export const schemaMigrations = sqliteTable("schema_migrations", {
 export const tickets = sqliteTable("tickets", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id").notNull().default("tenant-nexera-pilot"),
+  customFields: text("custom_fields"),
   externalRef: text("external_ref").notNull(),
   title: text("title").notNull(),
   requester: text("requester").notNull(),
@@ -60,6 +61,7 @@ export const securityEvents = sqliteTable("security_events", {
   action: text("action").notNull(),
   at: text("at").notNull(),
   detail: text("detail").notNull(),
+  acknowledgedAt: text("acknowledged_at"),
   fingerprint: text("fingerprint"),
   severity: text("severity", { enum: ["info", "warning", "critical"] }).notNull(),
   source: text("source", { enum: ["rustdesk-consent", "auth", "glpi", "admin"] }).notNull(),
@@ -91,3 +93,123 @@ export const tenants = sqliteTable("tenants", {
   requireSso: integer("require_sso").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+export const assets = sqliteTable("assets", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  owner: text("owner").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  customFields: text("custom_fields"),
+}, (table) => [
+  index("idx_assets_tenant_id").on(table.tenantId),
+]);
+
+export const calendarSettings = sqliteTable("calendar_settings", {
+  tenantId: text("tenant_id").primaryKey(),
+  provider: text("provider").notNull(),
+  calendarId: text("calendar_id").notNull(),
+  timezone: text("timezone").notNull(),
+  syncEnabled: integer("sync_enabled").notNull(),
+});
+
+export const ticketTemplates = sqliteTable("ticket_templates", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  index("idx_ticket_templates_tenant_id").on(table.tenantId),
+]);
+
+export const automationRules = sqliteTable("automation_rules", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  matchText: text("match_text").notNull(),
+  action: text("action").notNull(),
+  enabled: integer("enabled").notNull(),
+}, (table) => [
+  index("idx_automation_rules_tenant_id").on(table.tenantId),
+]);
+
+export const devices = sqliteTable("devices", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  clientName: text("client_name").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  index("idx_devices_tenant_id").on(table.tenantId),
+]);
+
+export const knowledgeArticles = sqliteTable("knowledge_articles", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  title: text("title").notNull(),
+  domain: text("domain").notNull(),
+  qualityScore: integer("quality_score").notNull(),
+  uses: integer("uses").notNull(),
+  status: text("status").notNull(),
+  summary: text("summary").notNull(),
+}, (table) => [
+  index("idx_knowledge_articles_tenant_id").on(table.tenantId),
+]);
+
+export const ticketSettings = sqliteTable("ticket_settings", {
+  tenantId: text("tenant_id").primaryKey(),
+  defaultPriority: text("default_priority").notNull(),
+  defaultOwner: text("default_owner").notNull(),
+  autoAssign: integer("auto_assign").notNull(),
+  allowRequesterReply: integer("allow_requester_reply").notNull(),
+});
+
+export const slaConfigs = sqliteTable("sla_configs", {
+  tenantId: text("tenant_id").primaryKey(),
+  responseMinutes: integer("response_minutes").notNull(),
+  resolutionMinutes: integer("resolution_minutes").notNull(),
+  businessStart: text("business_start").notNull(),
+  businessEnd: text("business_end").notNull(),
+  timezone: text("timezone").notNull(),
+});
+
+export const customFields = sqliteTable("custom_fields", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  appliesTo: text("applies_to").notNull(),
+  type: text("type").notNull(),
+  required: integer("required").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  index("idx_custom_fields_tenant_id").on(table.tenantId),
+]);
+
+export const technicianGroups = sqliteTable("technician_groups", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  specialty: text("specialty").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  index("idx_technician_groups_tenant_id").on(table.tenantId),
+]);
+
+export const clients = sqliteTable("clients", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  customFields: text("custom_fields"),
+}, (table) => [
+  uniqueIndex("clients_tenant_email_unique").on(table.tenantId, table.email),
+  index("idx_clients_tenant_id").on(table.tenantId),
+]);

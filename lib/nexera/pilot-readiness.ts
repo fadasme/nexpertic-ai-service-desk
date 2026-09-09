@@ -76,7 +76,7 @@ export function getPilotReadiness(): PilotReadiness {
       owner: "Producto",
       status: shouldSeedDemoData() ? "warning" : "ready",
     }),
-    e2eReadinessFromEnv(process.env),
+    e2eReadinessFromEnv({ NEXERA_E2E_VALIDATED: process.env.NEXERA_E2E_VALIDATED, NEXERA_E2E_VALIDATED_AT: process.env.NEXERA_E2E_VALIDATED_AT }),
   ];
 
   const summary = {

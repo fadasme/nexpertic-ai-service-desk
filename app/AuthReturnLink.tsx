@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type AuthReturnLinkProps = {
   children: React.ReactNode;
@@ -9,15 +9,18 @@ type AuthReturnLinkProps = {
 
 function buildReturnTo() {
   if (typeof window === "undefined") return "/";
-  return `${window.location.pathname}${window.location.hash || ""}`;
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
-export function AuthReturnLink({ children, className }: AuthReturnLinkProps) {
-  const [href, setHref] = useState("/signin?returnTo=/");
+const subscribe = (callback: () => void) => {
+  window.addEventListener("popstate", callback);
+  window.addEventListener("hashchange", callback);
+  return () => { window.removeEventListener("popstate", callback); window.removeEventListener("hashchange", callback); };
+};
 
-  useEffect(() => {
-    setHref(`/signin?returnTo=${encodeURIComponent(buildReturnTo())}`);
-  }, []);
+export function AuthReturnLink({ children, className }: AuthReturnLinkProps) {
+  const returnTo = useSyncExternalStore(subscribe, buildReturnTo, () => "/");
+  const href = `/signin?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
     <a className={className} href={href}>

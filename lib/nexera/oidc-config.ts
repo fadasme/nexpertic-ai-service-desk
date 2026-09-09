@@ -64,7 +64,7 @@ type OidcDiscovery = {
 };
 
 type JwksResponse = {
-  keys?: JsonWebKey[];
+  keys?: (JsonWebKey & { kid?: string })[];
 };
 
 type JwksCacheEntry = {

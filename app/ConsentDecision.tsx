@@ -22,13 +22,16 @@ type ConsentDecisionProps = {
 export function ConsentDecision({ initialSession, token }: ConsentDecisionProps) {
   const [session, setSession] = useState(initialSession);
   const [message, setMessage] = useState("");
-  const [isExpired, setIsExpired] = useState(false);
+  const [isExpired, setIsExpired] = useState(true);
   const [isPending, startTransition] = useTransition();
   const alreadyAnswered = Boolean(session.consentGrantedAt || session.consentRejectedAt);
   const actionsDisabled = alreadyAnswered || isExpired || isPending;
 
   useEffect(() => {
-    setIsExpired(Date.now() > new Date(session.consentExpiresAt).getTime());
+    const checkExpiry = () => setIsExpired(Date.now() >= new Date(session.consentExpiresAt).getTime());
+    const firstCheck = window.setTimeout(checkExpiry, 0);
+    const timer = window.setInterval(checkExpiry, 1000);
+    return () => { window.clearTimeout(firstCheck); window.clearInterval(timer); };
   }, [session.consentExpiresAt]);
 
   function decide(decision: "approve" | "reject") {

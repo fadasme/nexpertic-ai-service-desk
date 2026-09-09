@@ -18,7 +18,7 @@ npm run build
 Ruta local del proyecto:
 
 ```text
-/Users/fadasme/Documents/Codex/2026-07-20/ay
+/Users/fadasme/Documents/Codex/nexpertic-ai-service-desk
 ```
 
 El desarrollo local parte en modo demo. Para preparar un piloto, usa
@@ -29,8 +29,9 @@ fuera del repositorio.
 
 - `npm run dev`: inicia desarrollo local
 - `npm run build`: valida el build de vinext
+- `npm run typecheck`: genera tipos Workers desde el build y comprueba TypeScript
 - `npm run serve:vps`: arranque recomendado para VPS escuchando solo en `127.0.0.1:3008`
-- `npm run smoke:local`: prueba endpoints clave contra `http://localhost:3000`
+- `npm run smoke:local`: prueba endpoints clave contra `http://localhost:3001`
 - `npm run e2e:local`: valida flujo ticket -> GLPI/fallback -> RustDesk -> auditoria -> readiness
 - `npm run test:oidc`: valida seguridad OIDC localmente
 - `npm run test:glpi`: valida adapter GLPI localmente
@@ -44,7 +45,7 @@ fuera del repositorio.
 ## VPS / Deploy
 
 Cuando toque mover la instancia a un VPS, el runbook recomendado esta en
-[`outputs/nexera-ai-service-desk/95-vps-preparacion.md`](/Users/fadasme/Documents/Codex/2026-07-20/ay/outputs/nexera-ai-service-desk/95-vps-preparacion.md).
+[`outputs/nexera-ai-service-desk/95-vps-preparacion.md`](/Users/fadasme/Documents/Codex/nexpertic-ai-service-desk/outputs/nexera-ai-service-desk/95-vps-preparacion.md).
 Ese flujo asume `systemd`, `nginx`, Node `>=22.13.0` y app escuchando en
 `127.0.0.1:3008`.
 
@@ -55,7 +56,7 @@ Seeds versionados:
 - `lib/nexera/persistence/seeds/001-pilot-baseline.sql`: tenant piloto y usuario admin, sin tickets demo.
 - `lib/nexera/persistence/seeds/002-demo-data.sql`: datos opcionales para demos comerciales/locales.
 
-Para piloto cliente, usar primero la migracion `001-initial-schema.sql` y luego el seed `001-pilot-baseline.sql`. El seed demo debe quedar fuera de ambientes con datos reales.
+Las migraciones canónicas están en `drizzle/`; el SQL inicial en `lib/nexera/persistence` queda como referencia histórica. Para una base D1 nueva, aplicar las migraciones versionadas y luego el seed `001-pilot-baseline.sql`. El seed demo debe quedar fuera de ambientes con datos reales.
 
 Plan de aplicacion:
 
@@ -71,6 +72,27 @@ npm run db:plan:demo
 node scripts/db-apply.mjs --mode demo --database <d1-name-or-id> --local --execute
 ```
 
+## Migrar una instalación VPS existente
+
+El VPS usa `/var/www/nexpertic-ai-service-desk`, servicio
+`nexpertic-ai-service-desk.service`, puerto público `8081` e interno `127.0.0.1:3008`.
+El script actual `serve:vps` ejecuta el servidor de desarrollo de Vinext.
+
+Antes de arrancar esta versión, detener el servicio y conciliar la SQLite local de
+Miniflare (archivo de datos bajo `.wrangler/state/v3/d1/`, excluyendo `metadata.sqlite`):
+
+```bash
+node scripts/migrate-sqlite.mjs <archivo.sqlite>
+node scripts/migrate-sqlite.mjs <archivo.sqlite> --execute
+```
+
+El primer comando muestra el plan. El segundo crea un backup SQLite consistente,
+aplica los cambios en una transacción y registra las migraciones. Conserva datos y
+columnas existentes; rechaza tipos incompatibles. Se puede volver a ejecutar.
+No ejecutar los planes para bases nuevas sobre una instancia existente: sus tablas
+dinámicas pueden colisionar con el SQL de Drizzle. En D1 remoto se requiere inspeccionar
+y conciliar ese esquema antes de aplicar las migraciones.
+
 ## Environment
 
 Los archivos `.env.example` y `.env.pilot.example` contienen solo placeholders
@@ -78,6 +100,11 @@ seguros. `.env.example` mantiene desarrollo local en demo; `.env.pilot.example`
 deja el contrato listo para piloto/cliente con demo desactivado. No deben quedar
 tokens reales, client secrets, user tokens de GLPI ni secretos de firma en el
 repositorio.
+
+El administrador local está deshabilitado si `NEXERA_LOCAL_ADMIN_PASSWORD` está
+vacío o ausente. Para habilitarlo, definir una contraseña única y
+`NEXERA_LOCAL_ADMIN_EMAIL` en el archivo privado del entorno. No hay contraseña
+predeterminada. No copiar secretos a documentación o commits.
 
 Variables principales:
 
@@ -117,8 +144,19 @@ Antes de cargar datos reales:
 - Configurar `GLPI_BASE_URL`, `GLPI_APP_TOKEN` y `GLPI_USER_TOKEN`.
 - Ejecutar `npm run build`.
 - Ejecutar `npm run db:verify`.
-- Con la app local levantada en `http://localhost:3000`, ejecutar `npm run smoke:local`.
+- Con la app local levantada en `http://localhost:3001`, ejecutar `npm run smoke:local`.
 - Ejecutar `npm run e2e:local` y registrar `NEXERA_E2E_VALIDATED=true`.
+
+## Evidencia de auditoría local (2026-09-09)
+
+- Build, TypeScript, ESLint y verificación ejecutable de las 18 tablas: correctos.
+- Pruebas automatizadas: 34/34; smoke HTTP: 19/19; E2E HTTP: 18/18.
+- Smoke/E2E ejecutados en demo aislado, con SQLite propia y secretos temporales.
+- El E2E valida GLPI con fallback y consentimiento RustDesk; no acredita conexión
+  a los servicios reales ni una sesión de escritorio remoto.
+- RustDesk todavía construye su enlace con el ID del ticket; requiere integración
+  con el identificador real del dispositivo. No hay adaptador de correo implementado.
+- La actualización del VPS requiere acceso SSH y conciliación de su base existente.
 
 ## Producto Implementado
 

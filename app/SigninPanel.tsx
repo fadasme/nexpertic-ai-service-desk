@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useTransition } from "react";
 import type { IdentityProviderConfig, OidcJwksStatus, SessionUser, UserAccount } from "@/lib/nexera/contracts";
 
@@ -56,7 +57,7 @@ export function SigninPanel({ authMode, returnTo, sessionLocked }: SigninPanelPr
     <section className="signinGrid" aria-label="Ingreso a Nexpertic">
       <div className="signinCard signinSplit">
         <section className="signinBody">
-          <div className="signinAuthBrand"><img alt="Nexpertic" src="/nexpertic-logo-transparent.png"/><span>AI SERVICE DESK</span></div>
+          <div className="signinAuthBrand"><Image alt="Nexpertic" src="/nexpertic-logo-transparent.png" width={180} height={60} unoptimized/><span>AI SERVICE DESK</span></div>
           <p className="eyebrow">Iniciar sesión</p>
           <h2>Acceso principal</h2>
           <p className="signinLead">
