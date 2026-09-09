@@ -31,7 +31,9 @@ fuera del repositorio.
 - `npm run build`: valida el build de vinext
 - `npm run typecheck`: genera tipos Workers desde el build y comprueba TypeScript
 - `npm run serve:vps`: arranque recomendado para VPS escuchando solo en `127.0.0.1:3008`
-- `npm run smoke:local`: prueba endpoints clave contra `http://localhost:3001`
+- `npm run smoke:local`: prueba endpoints demo contra `http://localhost:3001`
+- `npm run smoke:production`: comprueba disponibilidad y rechazo de accesos anónimos/demo contra `http://127.0.0.1:3008`; admite `NEXPERTIC_PRODUCTION_BASE_URL`
+- `npm run test:production:http`: regresiones de sesión contra un servidor local aislado en modo producción; requiere `NEXERA_SESSION_SECRET` del fixture y admite `NEXPERTIC_TEST_BASE_URL`
 - `npm run e2e:local`: valida flujo ticket -> GLPI/fallback -> RustDesk -> auditoria -> readiness
 - `npm run test:oidc`: valida seguridad OIDC localmente
 - `npm run test:glpi`: valida adapter GLPI localmente
@@ -157,6 +159,18 @@ Antes de cargar datos reales:
 - RustDesk todavía construye su enlace con el ID del ticket; requiere integración
   con el identificador real del dispositivo. No hay adaptador de correo implementado.
 - La actualización del VPS requiere acceso SSH y conciliación de su base existente.
+
+### Protección de identidad de sesión
+
+En producción, `GET /api/auth/session` requiere cookie firmada y siempre devuelve
+la identidad de esa cookie. Los selectores `role` y `userId` solo funcionan en demo.
+El perfil permite editar el nombre visible; el correo de acceso permanece inmutable
+porque determina la visibilidad de tickets del solicitante.
+
+Validación adicional: 5/5 regresiones HTTP de sesión y 13/13 checks smoke en una
+instancia local aislada en producción. Esto no acredita el estado del VPS.
+Las regresiones HTTP requieren un fixture desechable; no se ejecutan dentro de
+`npm test` porque dependen de un servidor y su secreto de prueba.
 
 ## Producto Implementado
 

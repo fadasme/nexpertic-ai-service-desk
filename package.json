@@ -29,7 +29,9 @@
     "db:generate": "drizzle-kit generate",
     "test:local-admin": "node --experimental-strip-types --test tests/local-admin.test.ts",
     "test:migrations": "node --test tests/schema-migrations.test.mjs",
-    "typecheck": "WRANGLER_LOG_PATH=.wrangler/wrangler.log wrangler types .vinext/worker-configuration.d.ts --config dist/server/wrangler.json --strict-vars false && tsc --noEmit"
+    "typecheck": "WRANGLER_LOG_PATH=.wrangler/wrangler.log wrangler types .vinext/worker-configuration.d.ts --config dist/server/wrangler.json --strict-vars false && tsc --noEmit",
+    "smoke:production": "node scripts/smoke-production.mjs",
+    "test:production:http": "node --test tests/production-http.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

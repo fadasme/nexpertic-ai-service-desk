@@ -37,6 +37,13 @@ export async function GET(request: Request) {
   const requestedRole = searchParams.get("role") as UserRole | null;
   const cookieSession = await verifySessionCookie(cookieValue(request, sessionCookieName()));
 
+  if (!allowsDemoAuthFallback()) {
+    if (!cookieSession) {
+      return Response.json({ error: "Unauthenticated" }, { status: 401 });
+    }
+    return Response.json({ data: cookieSession, source: "signed-cookie" });
+  }
+
   if (!userId && !requestedRole && cookieSession) {
     return Response.json({ data: cookieSession, source: "signed-cookie" });
   }
@@ -107,9 +114,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const current = await verifySessionCookie(cookieValue(request, sessionCookieName()));
   if (!current) return Response.json({ error: "Unauthenticated" }, { status: 401 });
-  const body = (await request.json().catch(() => ({}))) as { name?: unknown; email?: unknown };
+  const parsed = await request.json().catch(() => null);
+  const body = (parsed && typeof parsed === "object" ? parsed : {}) as { name?: unknown; email?: unknown };
   const name = typeof body.name === "string" ? body.name.trim() : current.name;
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : current.email;
+  if (typeof body.email === "string" && body.email.trim().toLowerCase() !== current.email.toLowerCase()) {
+    return Response.json({ error: "El correo de acceso no se puede cambiar desde el perfil." }, { status: 400 });
+  }
+  const email = current.email;
   if (!name || !email || !email.includes("@")) return Response.json({ error: "Nombre y correo válidos son obligatorios" }, { status: 400 });
   const session = { ...current, name, email, expiresAt: sessionExpiresAt() };
   const headers = new Headers();
