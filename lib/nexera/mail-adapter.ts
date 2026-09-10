@@ -98,8 +98,11 @@ async function readSmtpLine(reader: ReadableStreamDefaultReader<Uint8Array>) {
 }
 
 async function expectSmtp(reader: ReadableStreamDefaultReader<Uint8Array>, accepted: number[]) {
-  const line = await readSmtpLine(reader);
+  let line = await readSmtpLine(reader);
   const code = Number(line.slice(0, 3));
+  while (/^\d{3}-/.test(line)) {
+    line = await readSmtpLine(reader);
+  }
   if (!accepted.includes(code)) throw new Error(`SMTP unexpected response ${code || "unknown"}`);
   return line;
 }
