@@ -5,6 +5,7 @@ import { suggestKnowledgeArticle } from "@/lib/nexera/knowledge-search";
 import { listKnowledgeArticles } from "@/lib/nexera/service";
 import { listAutomationRules } from "@/lib/nexera/automation-store";
 import { getTicketSettings } from "@/lib/nexera/ticket-settings-store";
+import { notifyTicketCreated } from "@/lib/nexera/mail-adapter";
 import { tenantIdFromRequest } from "@/lib/nexera/tenant-context";
 import type { CreateTicketInput, TicketPriority } from "@/lib/nexera/contracts";
 
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
         ticketId: ticket.id,
       });
     }
+    await notifyTicketCreated(ticket).catch(() => undefined);
 
     return Response.json({ data: ticket }, { status: 201 });
   } catch (error) {

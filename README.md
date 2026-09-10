@@ -127,6 +127,8 @@ Variables principales:
 - `OIDC_GROUPS_*`: mapea grupos OIDC a roles `Admin`, `Analista`, `Ejecutivo` y `Usuario`.
 - `GLPI_*`: configura la integracion operacional con GLPI.
 - `GLPI_TIMEOUT_MS` y `GLPI_MAX_RETRIES`: controlan timeout y reintentos del adapter GLPI.
+- `NEXERA_PUBLIC_URL`: URL publica usada en enlaces de notificacion.
+- `SMTP_*`: configura notificaciones por cPanel/SMTP.
 - `NEXERA_D1_DATABASE`: nombre o ID opcional de D1 para scripts operativos.
 
 Para generar secretos locales seguros:
@@ -148,6 +150,7 @@ Antes de cargar datos reales:
 - Definir secretos unicos por ambiente.
 - Configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` y `OIDC_REDIRECT_URI=https://servicedesk.nexera.cl/api/auth/oidc/callback`.
 - Configurar `GLPI_BASE_URL`, `GLPI_APP_TOKEN` y `GLPI_USER_TOKEN`.
+- Configurar `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM` para enviar notificaciones reales desde `soporte@nexera.cl`.
 - Ejecutar `npm run build`.
 - Ejecutar `npm run db:verify`.
 - Con la app local levantada en `http://localhost:3001`, ejecutar `npm run smoke:local`.

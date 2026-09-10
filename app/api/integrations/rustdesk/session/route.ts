@@ -1,6 +1,7 @@
 import { requirePermission } from "@/lib/nexera/auth-store";
 import { signConsentToken } from "@/lib/nexera/consent-token";
 import { createStoredRemoteSupportSession, listRemoteSupportSessions, updateStoredRemoteSupportSession } from "@/lib/nexera/remote-support-store";
+import { notifyRemoteSupportInvite } from "@/lib/nexera/mail-adapter";
 import { tenantIdFromRequest } from "@/lib/nexera/tenant-context";
 import { listStoredTickets } from "@/lib/nexera/ticket-store";
 import type { RemoteSupportSession, UpdateRemoteSupportSessionInput } from "@/lib/nexera/contracts";
@@ -63,6 +64,7 @@ export async function PATCH(request: Request) {
   }
 
   const current = (await listRemoteSupportSessions(undefined, tenantId)).find((session) => session.id === body.id);
+  const ticket = (await listStoredTickets({ tenantId })).find((item) => item.id === current?.ticketId);
 
   if (!current) {
     return Response.json({ error: "Remote support session not found" }, { status: 404 });
@@ -86,6 +88,10 @@ export async function PATCH(request: Request) {
 
   if (!session) {
     return Response.json({ error: "Remote support session not found" }, { status: 404 });
+  }
+
+  if (body.status === "Invitacion enviada" && ticket) {
+    await notifyRemoteSupportInvite(ticket, await signedSession(session)).catch(() => undefined);
   }
 
   return Response.json({ data: await signedSession(session) });

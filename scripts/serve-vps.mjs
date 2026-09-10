@@ -11,7 +11,7 @@ let localEnv = {};
 try { localEnv = parseEnv(readFileSync(resolve(root, '.env'), 'utf8')); }
 catch (error) { if (error.code !== 'ENOENT') throw error; }
 const runtimeEnv = { ...localEnv, ...process.env };
-const bindings = Object.fromEntries(Object.entries(runtimeEnv).filter(([key, value]) => /^(NEXERA_|OIDC_|GLPI_)/.test(key) && typeof value === 'string'));
+const bindings = Object.fromEntries(Object.entries(runtimeEnv).filter(([key, value]) => /^(NEXERA_|OIDC_|GLPI_|SMTP_)/.test(key) && typeof value === 'string'));
 const port = Number(runtimeEnv.NEXPERTIC_VPS_PORT ?? 3008);
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid VPS port');
 const mf = new Miniflare({
