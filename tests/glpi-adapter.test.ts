@@ -47,6 +47,18 @@ test("queues tickets when GLPI credentials are missing", async () => {
   assert.equal(result.externalRef, "GLPI-PENDING-1001");
 });
 
+test("does not treat GLPI placeholder values as configured", () => {
+  process.env.GLPI_BASE_URL = "https://glpi.example.com";
+  process.env.GLPI_APP_TOKEN = "<glpi-app-token>";
+  process.env.GLPI_USER_TOKEN = "<glpi-user-token>";
+
+  const status = getGlpiStatus();
+
+  assert.equal(status.configured, false);
+  assert.equal(status.mode, "not_configured");
+  assert.deepEqual(status.endpoints, []);
+});
+
 test("creates a GLPI ticket and closes the session", async () => {
   configureGlpiEnv();
   const calls: Array<{ method: string; url: string }> = [];

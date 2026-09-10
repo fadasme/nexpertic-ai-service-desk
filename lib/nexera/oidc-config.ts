@@ -1,10 +1,7 @@
 import type { ExternalIdentityClaims, IdentityProviderConfig, OidcJwksStatus, UserAccount, UserRole } from "./contracts";
+import { hasConfiguredEnvValue } from "./runtime-config.ts";
 
 const textEncoder = new TextEncoder();
-
-function configured(value?: string) {
-  return Boolean(value && value.trim());
-}
 
 export function isDevOidcStateSecret() {
   return !process.env.NEXERA_OIDC_STATE_SECRET;
@@ -33,12 +30,12 @@ export function getOidcConfig(): IdentityProviderConfig {
   const clientSecret = process.env.OIDC_CLIENT_SECRET;
   const redirectUri = process.env.OIDC_REDIRECT_URI;
   const jwksUri = process.env.OIDC_JWKS_URI;
-  const isConfigured = configured(issuer) && configured(clientId) && configured(clientSecret) && configured(redirectUri);
+  const isConfigured = hasConfiguredEnvValue(issuer) && hasConfiguredEnvValue(clientId) && hasConfiguredEnvValue(clientSecret) && hasConfiguredEnvValue(redirectUri);
 
   return {
     authorizationUrl: issuer ? `${issuer.replace(/\/$/, "")}/oauth2/v2.0/authorize` : undefined,
-    clientIdConfigured: configured(clientId),
-    clientSecretConfigured: configured(clientSecret),
+    clientIdConfigured: hasConfiguredEnvValue(clientId),
+    clientSecretConfigured: hasConfiguredEnvValue(clientSecret),
     issuer,
     jwksUri,
     mode: isConfigured ? "configured" : "not_configured",

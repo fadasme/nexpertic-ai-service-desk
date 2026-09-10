@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { permissionsByRole, usersByRole } from "./auth-store";
 import { tickets as seedTickets } from "./demo-data";
 import { persistenceSchemaStatusFromRows, type PersistenceSchemaStatus } from "./persistence-status";
-import { shouldSeedDemoData } from "./runtime-config";
+import { hasConfiguredEnvValue, shouldSeedDemoData } from "./runtime-config";
 import { DEFAULT_TENANT_ID } from "./tenant-context";
 import type { AuditEvent, CreateAuditEventInput, CreateRemoteSupportSessionInput, CreateTicketInput, RemoteSupportSession, TenantConfig, Ticket, TicketPriority, UpdateRemoteSupportSessionInput, UpdateTicketInput, UpdateTenantConfigInput, UpdateUserRoleInput, UserAccount, UserRole } from "./contracts";
 
@@ -116,14 +116,14 @@ function seedTenants(): TenantConfig[] {
       status: "Piloto",
       region: "CL",
       features: {
-        glpi: Boolean(process.env.GLPI_BASE_URL && process.env.GLPI_APP_TOKEN && process.env.GLPI_USER_TOKEN),
-        oidc: Boolean(process.env.OIDC_ISSUER && process.env.OIDC_CLIENT_ID && process.env.OIDC_CLIENT_SECRET),
+        glpi: hasConfiguredEnvValue(process.env.GLPI_BASE_URL) && hasConfiguredEnvValue(process.env.GLPI_APP_TOKEN) && hasConfiguredEnvValue(process.env.GLPI_USER_TOKEN),
+        oidc: hasConfiguredEnvValue(process.env.OIDC_ISSUER) && hasConfiguredEnvValue(process.env.OIDC_CLIENT_ID) && hasConfiguredEnvValue(process.env.OIDC_CLIENT_SECRET),
         rustdesk: true,
       },
       policies: {
         demoDataAllowed: shouldSeedDemoData(),
         requireRemoteConsent: true,
-        requireSso: Boolean(process.env.OIDC_ISSUER),
+        requireSso: hasConfiguredEnvValue(process.env.OIDC_ISSUER),
       },
       createdAt: "2026-07-23T00:00:00.000Z",
     },

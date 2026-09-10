@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isDevOidcStateSecret, mapClaimsToUserAccount, verifyIdTokenClaims } from "../lib/nexera/oidc-config.ts";
+import { getOidcConfig, isDevOidcStateSecret, mapClaimsToUserAccount, verifyIdTokenClaims } from "../lib/nexera/oidc-config.ts";
 import type { UserAccount } from "../lib/nexera/contracts.ts";
 
 const issuer = "https://login.example.test/tenant/v2.0";
@@ -74,6 +74,19 @@ function configureEnv(jwksSuffix = "default") {
   process.env.OIDC_GROUPS_EXECUTIVE = "Nexpertic-Executives";
   process.env.OIDC_GROUPS_USER = "Nexpertic-Users";
 }
+
+test("does not treat OIDC placeholder values as configured", () => {
+  process.env.OIDC_ISSUER = "https://login.microsoftonline.com/<tenant-id>/v2.0";
+  process.env.OIDC_CLIENT_ID = "<client-id>";
+  process.env.OIDC_CLIENT_SECRET = "<client-secret>";
+  process.env.OIDC_REDIRECT_URI = "https://<domain>/api/auth/oidc/callback";
+
+  const config = getOidcConfig();
+
+  assert.equal(config.mode, "not_configured");
+  assert.equal(config.clientIdConfigured, false);
+  assert.equal(config.clientSecretConfigured, false);
+});
 
 test("verifies a signed OIDC ID token with JWKS", async () => {
   configureEnv("valid-token");

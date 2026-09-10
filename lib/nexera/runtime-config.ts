@@ -12,6 +12,16 @@ export function canCleanupDemoData() {
 
 export type AuthMode = "demo" | "production";
 
+export function hasConfiguredEnvValue(value?: string) {
+  const normalized = value?.trim();
+  if (!normalized) return false;
+  if (/^<.+>$/.test(normalized)) return false;
+  if (normalized.includes("example.com")) return false;
+  if (normalized.includes("replace-with-")) return false;
+  if (normalized.includes("generate-")) return false;
+  return true;
+}
+
 export function getAuthMode(): AuthMode {
   return process.env.NEXERA_AUTH_MODE === "production" ? "production" : "demo";
 }
@@ -30,7 +40,7 @@ export function getLocalAdminCredentials() {
 
   return {
     email,
-    enabled: Boolean(email) && Boolean(password),
+    enabled: hasConfiguredEnvValue(email) && hasConfiguredEnvValue(password),
     password,
   };
 }

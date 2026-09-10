@@ -14,7 +14,7 @@ type SigninPanelProps = {
   users: UserAccount[];
 };
 
-export function SigninPanel({ authMode, returnTo, sessionLocked }: SigninPanelProps) {
+export function SigninPanel({ authMode, oidcConfig, oidcStatus, returnTo, sessionLocked }: SigninPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -26,6 +26,7 @@ export function SigninPanel({ authMode, returnTo, sessionLocked }: SigninPanelPr
     Ejecutivo: "/ejecutivo",
     Usuario: "/usuario",
   };
+  const oidcReady = oidcConfig.mode === "configured" && oidcStatus.jwksAvailable;
   const accessButtonLabel = sessionLocked ? "Desbloquear con tu cuenta" : authMode === "production" ? "Continuar con tu cuenta" : "Entrar con cuenta demo";
 
   function signInWithOidc() {
@@ -63,13 +64,16 @@ export function SigninPanel({ authMode, returnTo, sessionLocked }: SigninPanelPr
           <p className="signinLead">
             {sessionLocked
               ? "Vuelve a entrar con tu usuario y clave para desbloquear la plataforma."
-              : "Usa tu cuenta de trabajo para continuar."}
+              : oidcReady
+                ? "Usa tu cuenta de trabajo para continuar."
+                : "El acceso corporativo quedara disponible cuando Nexera entregue SSO."}
           </p>
 
           <div className="signinActions">
-            <button className="primary" disabled={isPending} onClick={signInWithOidc} type="button">
+            <button className="primary" disabled={isPending || !oidcReady} onClick={signInWithOidc} type="button">
               {accessButtonLabel}
             </button>
+            {!oidcReady ? <p className="permissionHint">SSO aun no esta configurado; usa el acceso interno temporal.</p> : null}
           </div>
 
         </section>

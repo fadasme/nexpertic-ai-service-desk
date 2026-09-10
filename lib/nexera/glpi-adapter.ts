@@ -1,4 +1,5 @@
 import type { Ticket, TicketPriority, TicketStatus, UpdateTicketInput } from "./contracts";
+import { hasConfiguredEnvValue } from "./runtime-config.ts";
 
 export type GlpiSyncResult = {
   externalRef: string;
@@ -54,7 +55,7 @@ function buildFallbackRef(ticketId: string) {
 
 export function getGlpiStatus() {
   const config = getGlpiConfig();
-  const configured = Boolean(config.baseUrl && config.appToken && config.userToken);
+  const configured = hasConfiguredEnvValue(config.baseUrl) && hasConfiguredEnvValue(config.appToken) && hasConfiguredEnvValue(config.userToken);
 
   return {
     configured,
