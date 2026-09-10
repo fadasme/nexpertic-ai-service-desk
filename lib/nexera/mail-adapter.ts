@@ -85,23 +85,62 @@ function mailBody(message: MailMessage, from: string) {
   ].join("\r\n");
 }
 
-async function readSmtpLine(reader: ReadableStreamDefaultReader<Uint8Array>) {
-  const decoder = new TextDecoder();
-  let output = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    output += decoder.decode(value, { stream: true });
-    if (/\r?\n/.test(output)) break;
+class SmtpReader {
+  private readonly decoder = new TextDecoder();
+  private readonly reader: ReadableStreamDefaultReader<Uint8Array>;
+  private buffer = "";
+
+  constructor(reader: ReadableStreamDefaultReader<Uint8Array>) {
+    this.reader = reader;
   }
-  return output;
+
+  async line() {
+    for (;;) {
+      const lineBreak = this.buffer.search(/\r?\n/);
+      if (lineBreak >= 0) {
+        const line = this.buffer.slice(0, lineBreak);
+        this.buffer = this.buffer.slice(lineBreak + (this.buffer[lineBreak] === "\r" ? 2 : 1));
+        return line;
+      }
+
+      const { done, value } = await this.reader.read();
+      if (done) {
+        const remaining = this.buffer;
+        this.buffer = "";
+        return remaining;
+      }
+
+      this.buffer += this.decoder.decode(value, { stream: true });
+    }
+  }
 }
 
-async function expectSmtp(reader: ReadableStreamDefaultReader<Uint8Array>, accepted: number[]) {
-  let line = await readSmtpLine(reader);
-  const code = Number(line.slice(0, 3));
+function smtpTimeoutMs() {
+  const configured = Number(process.env.SMTP_TIMEOUT_MS);
+  return Number.isInteger(configured) && configured > 0 ? configured : 15_000;
+}
+
+async function withSmtpTimeout<T>(operation: Promise<T>, label: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const limitMs = smtpTimeoutMs();
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`SMTP ${label} timed out after ${limitMs}ms`)), limitMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+async function expectSmtp(smtpReader: SmtpReader, accepted: number[]) {
+  let line = await smtpReader.line();
+  let code = Number(line.slice(0, 3));
   while (/^\d{3}-/.test(line)) {
-    line = await readSmtpLine(reader);
+    line = await smtpReader.line();
+    code = Number(line.slice(0, 3));
   }
   if (!accepted.includes(code)) throw new Error(`SMTP unexpected response ${code || "unknown"}`);
   return line;
@@ -117,45 +156,55 @@ async function sendViaSmtp(message: MailMessage, config: MailConfig) {
     { hostname: config.host ?? "", port: config.port },
     { allowHalfOpen: false, secureTransport: config.secure ? "on" : "starttls" },
   );
-  await socket.opened;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let writer: WritableStreamDefaultWriter<Uint8Array> | undefined;
 
-  let reader = socket.readable.getReader();
-  let writer = socket.writable.getWriter();
-  await expectSmtp(reader, [220]);
-  await writeSmtp(writer, `EHLO ${publicUrl().replace(/^https?:\/\//, "")}`);
-  await expectSmtp(reader, [250]);
+  try {
+    await withSmtpTimeout(socket.opened, "connection");
 
-  if (!config.secure) {
-    await writeSmtp(writer, "STARTTLS");
-    await expectSmtp(reader, [220]);
-    writer.releaseLock();
-    reader.releaseLock();
-    socket = socket.startTls({ expectedServerHostname: config.host });
-    await socket.opened;
     reader = socket.readable.getReader();
     writer = socket.writable.getWriter();
+    let smtpReader = new SmtpReader(reader);
+    await withSmtpTimeout(expectSmtp(smtpReader, [220]), "greeting");
     await writeSmtp(writer, `EHLO ${publicUrl().replace(/^https?:\/\//, "")}`);
-    await expectSmtp(reader, [250]);
-  }
+    await withSmtpTimeout(expectSmtp(smtpReader, [250]), "EHLO");
 
-  await writeSmtp(writer, "AUTH LOGIN");
-  await expectSmtp(reader, [334]);
-  await writeSmtp(writer, btoa(config.user ?? ""));
-  await expectSmtp(reader, [334]);
-  await writeSmtp(writer, btoa(config.password ?? ""));
-  await expectSmtp(reader, [235]);
-  await writeSmtp(writer, `MAIL FROM:<${config.from}>`);
-  await expectSmtp(reader, [250]);
-  await writeSmtp(writer, `RCPT TO:<${message.to}>`);
-  await expectSmtp(reader, [250, 251]);
-  await writeSmtp(writer, "DATA");
-  await expectSmtp(reader, [354]);
-  await writeSmtp(writer, `${mailBody(message, config.from ?? "")}\r\n.`);
-  await expectSmtp(reader, [250]);
-  await writeSmtp(writer, "QUIT");
-  writer.releaseLock();
-  reader.releaseLock();
-  await socket.close();
+    if (!config.secure) {
+      await writeSmtp(writer, "STARTTLS");
+      await withSmtpTimeout(expectSmtp(smtpReader, [220]), "STARTTLS");
+      writer.releaseLock();
+      reader.releaseLock();
+      writer = undefined;
+      reader = undefined;
+      socket = socket.startTls({ expectedServerHostname: config.host });
+      await withSmtpTimeout(socket.opened, "TLS upgrade");
+      reader = socket.readable.getReader();
+      writer = socket.writable.getWriter();
+      smtpReader = new SmtpReader(reader);
+      await writeSmtp(writer, `EHLO ${publicUrl().replace(/^https?:\/\//, "")}`);
+      await withSmtpTimeout(expectSmtp(smtpReader, [250]), "EHLO after STARTTLS");
+    }
+
+    await writeSmtp(writer, "AUTH LOGIN");
+    await withSmtpTimeout(expectSmtp(smtpReader, [334]), "AUTH LOGIN");
+    await writeSmtp(writer, btoa(config.user ?? ""));
+    await withSmtpTimeout(expectSmtp(smtpReader, [334]), "SMTP username");
+    await writeSmtp(writer, btoa(config.password ?? ""));
+    await withSmtpTimeout(expectSmtp(smtpReader, [235]), "SMTP password");
+    await writeSmtp(writer, `MAIL FROM:<${config.from}>`);
+    await withSmtpTimeout(expectSmtp(smtpReader, [250]), "MAIL FROM");
+    await writeSmtp(writer, `RCPT TO:<${message.to}>`);
+    await withSmtpTimeout(expectSmtp(smtpReader, [250, 251]), "RCPT TO");
+    await writeSmtp(writer, "DATA");
+    await withSmtpTimeout(expectSmtp(smtpReader, [354]), "DATA");
+    await writeSmtp(writer, `${mailBody(message, config.from ?? "")}\r\n.`);
+    await withSmtpTimeout(expectSmtp(smtpReader, [250]), "message delivery");
+    await writeSmtp(writer, "QUIT");
+  } finally {
+    try { writer?.releaseLock(); } catch {}
+    try { reader?.releaseLock(); } catch {}
+    try { await socket.close(); } catch {}
+  }
 }
 
 export async function sendMail(message: MailMessage) {
