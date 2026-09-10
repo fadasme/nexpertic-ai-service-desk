@@ -84,7 +84,7 @@ export function SigninPanel({ authMode, oidcConfig, oidcStatus, returnTo, sessio
           <div className="adminLoginForm">
             <label>
               <span>Correo</span>
-              <input autoComplete="username" onChange={(event) => setAdminEmail(event.target.value)} placeholder="admin@nexera.local" type="email" value={adminEmail} />
+              <input autoComplete="username" onChange={(event) => setAdminEmail(event.target.value)} placeholder="soporte@nexera.cl" type="email" value={adminEmail} />
             </label>
             <label>
               <span>Clave</span>

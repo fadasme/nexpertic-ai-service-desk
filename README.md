@@ -77,7 +77,8 @@ node scripts/db-apply.mjs --mode demo --database <d1-name-or-id> --local --execu
 ## Migrar una instalación VPS existente
 
 El VPS usa `/var/www/nexpertic-ai-service-desk`, servicio
-`nexpertic-ai-service-desk.service`, puerto público `8081` e interno `127.0.0.1:3008`.
+`nexpertic-ai-service-desk.service`, URL pública `https://servicedesk.nexera.cl`,
+puerto legado temporal `8081` e interno `127.0.0.1:3008`.
 `serve:vps` ejecuta el Worker compilado con Miniflare/workerd, sin Vite ni HMR,
 escuchando explícitamente en IPv4 local. Requiere un build previo.
 La base D1 local conserva su directorio e identificador. El runtime carga `.env`
@@ -108,7 +109,7 @@ repositorio.
 
 El administrador local está deshabilitado si `NEXERA_LOCAL_ADMIN_PASSWORD` está
 vacío o ausente. Para habilitarlo, definir una contraseña única y
-`NEXERA_LOCAL_ADMIN_EMAIL` en el archivo privado del entorno. No hay contraseña
+`NEXERA_LOCAL_ADMIN_EMAIL=soporte@nexera.cl` en el archivo privado del entorno. No hay contraseña
 predeterminada. No copiar secretos a documentación o commits.
 
 Variables principales:
@@ -145,7 +146,7 @@ Antes de cargar datos reales:
 - Mantener `NEXERA_ALLOW_DEMO_CLEANUP=false` salvo ventana controlada de limpieza.
 - Usar seed `001-pilot-baseline.sql`, no `002-demo-data.sql`.
 - Definir secretos unicos por ambiente.
-- Configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` y `OIDC_REDIRECT_URI`.
+- Configurar `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` y `OIDC_REDIRECT_URI=https://servicedesk.nexera.cl/api/auth/oidc/callback`.
 - Configurar `GLPI_BASE_URL`, `GLPI_APP_TOKEN` y `GLPI_USER_TOKEN`.
 - Ejecutar `npm run build`.
 - Ejecutar `npm run db:verify`.

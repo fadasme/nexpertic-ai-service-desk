@@ -1,5 +1,5 @@
 import type { SessionUser } from "./contracts";
-import { getDefaultSessionTtlMinutes } from "./runtime-config";
+import { getAuthMode, getDefaultSessionTtlMinutes } from "./runtime-config.ts";
 
 const textEncoder = new TextEncoder();
 const SESSION_COOKIE = "nexera_session";
@@ -104,7 +104,7 @@ export async function signSessionLockCookie(session: SessionUser) {
 
 export async function buildSessionLockCookie(session: SessionUser) {
   const value = await signSessionLockCookie(session);
-  return `${SESSION_LOCK_COOKIE}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${sessionTtlMinutes() * 60}`;
+  return `${SESSION_LOCK_COOKIE}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${sessionTtlMinutes() * 60}${secureCookieAttribute()}`;
 }
 
 export async function verifySessionLockCookie(value?: string | null) {
@@ -121,7 +121,7 @@ export async function verifySessionLockCookie(value?: string | null) {
 }
 
 export function buildSessionSetCookie(value: string) {
-  return `${SESSION_COOKIE}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${sessionTtlMinutes() * 60}`;
+  return `${SESSION_COOKIE}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${sessionTtlMinutes() * 60}${secureCookieAttribute()}`;
 }
 
 export function getSessionTtlMinutes() {
@@ -129,9 +129,13 @@ export function getSessionTtlMinutes() {
 }
 
 export function clearSessionCookie() {
-  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secureCookieAttribute()}`;
 }
 
 export function clearSessionLockCookie() {
-  return `${SESSION_LOCK_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  return `${SESSION_LOCK_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secureCookieAttribute()}`;
+}
+
+function secureCookieAttribute() {
+  return getAuthMode() === "production" ? "; Secure" : "";
 }

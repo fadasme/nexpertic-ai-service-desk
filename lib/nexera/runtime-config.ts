@@ -35,7 +35,7 @@ export function getDefaultSessionTtlMinutes() {
 }
 
 export function getLocalAdminCredentials() {
-  const email = (process.env.NEXERA_LOCAL_ADMIN_EMAIL ?? "admin@nexera.local").trim();
+  const email = (process.env.NEXERA_LOCAL_ADMIN_EMAIL ?? "soporte@nexera.cl").trim();
   const password = (process.env.NEXERA_LOCAL_ADMIN_PASSWORD ?? "").trim();
 
   return {
